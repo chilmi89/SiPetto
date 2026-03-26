@@ -65,7 +65,10 @@ export default function AdminDashboardPage() {
           <h1 className="text-3xl font-black text-zinc-800 tracking-tightest uppercase font-heading">Ringkasan Admin</h1>
           <p className="text-sm font-bold text-zinc-400">Selamat datang kembali, John Doe! Inilah ringkasan bisnis Anda hari ini.</p>
         </div>
-        <button className="flex items-center gap-2 px-5 py-3 bg-white border border-zinc-200 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 hover:bg-zinc-50 transition-all shadow-sm active:scale-95">
+        <button 
+          className="flex items-center gap-2 px-5 py-3 bg-white border border-zinc-200 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 hover:bg-zinc-50 transition-all shadow-sm active:scale-95"
+          suppressHydrationWarning
+        >
           <Calendar className="w-4 h-4 text-primary" />
           Maret 2026
         </button>
@@ -102,7 +105,10 @@ export default function AdminDashboardPage() {
               <h3 className="text-xl font-black text-zinc-800 tracking-tight font-heading">Performa Pendapatan</h3>
               <p className="text-xs font-bold text-zinc-400">Analisis statistik pertumbuhan bulanan (Juta Rupiah)</p>
             </div>
-            <select className="bg-zinc-50 border border-zinc-200 text-[10px] font-black uppercase tracking-widest p-3 rounded-xl outline-none focus:ring-2 focus:ring-primary/10 transition-all cursor-pointer font-sans">
+            <select 
+              className="bg-zinc-50 border border-zinc-200 text-[10px] font-black uppercase tracking-widest p-3 rounded-xl outline-none focus:ring-2 focus:ring-primary/10 transition-all cursor-pointer font-sans"
+              suppressHydrationWarning
+            >
               <option>12 Bulan Terakhir</option>
               <option>30 Hari Terakhir</option>
             </select>
@@ -176,7 +182,10 @@ export default function AdminDashboardPage() {
             ))}
           </div>
 
-          <button className="relative z-10 w-full py-4.5 bg-white/10 hover:bg-white border border-white/10 text-white hover:text-primary transition-all duration-300 rounded-xl text-[10px] font-black uppercase tracking-[0.25em] shadow-xl hover:shadow-white/10 active:scale-95 font-sans">
+          <button 
+            className="relative z-10 w-full py-4.5 bg-white/10 hover:bg-white border border-white/10 text-white hover:text-primary transition-all duration-300 rounded-xl text-[10px] font-black uppercase tracking-[0.25em] shadow-xl hover:shadow-white/10 active:scale-95 font-sans"
+            suppressHydrationWarning
+          >
             Lihat Semua Log
           </button>
         </div>

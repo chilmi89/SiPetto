@@ -23,6 +23,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         className={`flex-1 flex flex-col h-full overflow-hidden relative z-0 transition-all duration-300 ${
           mounted && isOpen ? "lg:ml-72" : "lg:ml-0"
         }`}
+        suppressHydrationWarning
       >
         <DashboardHeader />
         

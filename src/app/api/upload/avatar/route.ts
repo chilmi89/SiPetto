@@ -1,16 +1,17 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 export async function POST(req: Request) {
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
     if (!supabaseUrl || !supabaseKey) {
         console.error("Kredensial Supabase URL atau KEY kosong. Silakan periksa .env Anda.");
         return NextResponse.json({ error: 'Konfigurasi Cloud Storage belum lengkap' }, { status: 500 });
     }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     const formData = await req.formData();
     const file = formData.get('file') as File | null;

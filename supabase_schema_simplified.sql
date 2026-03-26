@@ -21,31 +21,43 @@ CREATE TABLE IF NOT EXISTS public.role_permissions (
     PRIMARY KEY (role_id, permission_id)
 );
 
--- 4. Users Table (Core Auth Data)
-CREATE TABLE IF NOT EXISTS public.users (
-    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL, -- Recommended: store as hashed
-    role_id UUID REFERENCES public.roles(id) ON DELETE SET NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 5. Profiles Table (Complete detail here)
--- Store additional user/tenant data
+-- 4. Profiles Table (Menggantikan public.users agar tidak bentrok)
+-- Tabel ini terhubung langsung dengan auth.users milik Supabase
 CREATE TABLE IF NOT EXISTS public.profiles (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
-    full_name VARCHAR(255),
-    avatar_url TEXT,
-    phone_number VARCHAR(20),
-    address TEXT,
-    bio TEXT,
+    id UUID PRIMARY KEY, -- Bebas tanpa ikatan Foreign Key SQL. Prisma akan melihatnya seperti ID biasa yang super bersih!
+    role_id UUID REFERENCES public.roles(id) ON DELETE SET NULL,
+    email VARCHAR(255) UNIQUE NOT NULL, -- Supabase menangani password, kita simpan email untuk kemudahan
+    full_name VARCHAR(255), -- Diisi saat register (Langkah 1)
+    business_name VARCHAR(255), -- Dibuang NOT NULL nya, diisi belakangan saat Setup UMKM (Langkah 2)
+    phone_number VARCHAR(20), 
+    address TEXT, 
+    avatar_url TEXT, 
+    bio TEXT, 
     is_active BOOLEAN DEFAULT TRUE,
     metadata JSONB DEFAULT '{}',
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 5. Trigger Supabase: Otomatis buat Profile saat User Register
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name)
+  VALUES (
+    new.id, 
+    new.email, 
+    new.raw_user_meta_data->>'full_name' -- Mengambil nama dari metadata saat register
+  );
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Pasang Trigger ke auth.users
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
 -- Automatic Updated At trigger for Profiles
 CREATE OR REPLACE FUNCTION update_updated_at_column()

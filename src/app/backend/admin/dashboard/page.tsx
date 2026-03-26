@@ -52,10 +52,19 @@ const activity = [
 
 export default function AdminDashboardPage() {
   const [mounted, setMounted] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ full_name: string | null; email: string; role_name: string | null } | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    fetch("/api/auth/me")
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data) setCurrentUser(data); })
+      .catch(() => {});
   }, []);
+
+  const displayName = currentUser?.full_name
+    || currentUser?.email?.split("@")[0]
+    || "Admin";
 
   return (
     <div className="flex flex-col gap-8 w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -63,7 +72,7 @@ export default function AdminDashboardPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-3xl font-black text-zinc-800 tracking-tightest uppercase font-heading">Ringkasan Admin</h1>
-          <p className="text-sm font-bold text-zinc-400">Selamat datang kembali, John Doe! Inilah ringkasan bisnis Anda hari ini.</p>
+          <p className="text-sm font-bold text-zinc-400">Selamat datang kembali, {displayName}! Inilah ringkasan bisnis Anda hari ini.</p>
         </div>
         <button 
           className="flex items-center gap-2 px-5 py-3 bg-white border border-zinc-200 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 hover:bg-zinc-50 transition-all shadow-sm active:scale-95"
@@ -114,7 +123,7 @@ export default function AdminDashboardPage() {
             </select>
           </div>
           
-          <div className="flex-1 w-full -ml-4">
+          <div className="w-full h-[340px] -ml-4">
             {mounted && (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>

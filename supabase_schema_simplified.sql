@@ -1,16 +1,19 @@
--- Simplified SQL Schema for SiPetto (Supabase / Postgres)
+-- 🧠 Optimized SQL Schema for SiPetto (Supabase / Prisma)
 
--- 1. Roles Table (Simple)
+-- 1. Roles Table
 CREATE TABLE IF NOT EXISTS public.roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(50) UNIQUE NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Permissions Table (Simple)
+-- Seed Initial Roles
+INSERT INTO public.roles (name) VALUES ('Admin'), ('UMKM'), ('Owner') ON CONFLICT (name) DO NOTHING;
+
+-- 2. Permissions Table
 CREATE TABLE IF NOT EXISTS public.permissions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(100) UNIQUE NOT NULL, -- e.g. 'manage:all', 'post:edit'
+    name VARCHAR(100) UNIQUE NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -21,14 +24,15 @@ CREATE TABLE IF NOT EXISTS public.role_permissions (
     PRIMARY KEY (role_id, permission_id)
 );
 
--- 4. Profiles Table (Menggantikan public.users agar tidak bentrok)
--- Tabel ini terhubung langsung dengan auth.users milik Supabase
+-- 4. Profiles Table (Linked to auth.users)
+-- We store email and full_name as cache for visibility in Prisma without schema joins
 CREATE TABLE IF NOT EXISTS public.profiles (
-    id UUID PRIMARY KEY, -- Bebas tanpa ikatan Foreign Key SQL. Prisma akan melihatnya seperti ID biasa yang super bersih!
+    id UUID PRIMARY KEY, -- Removed physical REFERENCES to avoid Prisma multi-schema issues
     role_id UUID REFERENCES public.roles(id) ON DELETE SET NULL,
-    email VARCHAR(255) UNIQUE NOT NULL, -- Supabase menangani password, kita simpan email untuk kemudahan
-    full_name VARCHAR(255), -- Diisi saat register (Langkah 1)
-    business_name VARCHAR(255), -- Dibuang NOT NULL nya, diisi belakangan saat Setup UMKM (Langkah 2)
+    email VARCHAR(255) UNIQUE NOT NULL, 
+    password VARCHAR(255), -- Back for manual auth
+    full_name VARCHAR(255), 
+    business_name VARCHAR(255), -- Fill in Step 2 (UMKM Setup)
     phone_number VARCHAR(20), 
     address TEXT, 
     avatar_url TEXT, 
@@ -39,27 +43,38 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 5. Trigger Supabase: Otomatis buat Profile saat User Register
+-- Enable Row Level Security
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles
+    FOR SELECT USING (true);
+
+CREATE POLICY "Users can update own profile" ON public.profiles
+    FOR UPDATE USING (auth.uid() = id);
+
+-- 5. Trigger Supabase: Auto-create Profile on Auth Signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-  INSERT INTO public.profiles (id, email, full_name)
+  INSERT INTO public.profiles (id, email, full_name, role_id)
   VALUES (
     new.id, 
     new.email, 
-    new.raw_user_meta_data->>'full_name' -- Mengambil nama dari metadata saat register
+    COALESCE(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'nama'), -- Flexible key support
+    (SELECT id FROM public.roles WHERE name = 'UMKM' LIMIT 1) -- Assign 'UMKM' as default role
   );
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Pasang Trigger ke auth.users
+-- Map Trigger to auth.users
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
--- Automatic Updated At trigger for Profiles
+-- Automatic Updated At trigger
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -68,4 +83,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_profiles_modtime BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+DROP TRIGGER IF EXISTS update_profiles_modtime ON public.profiles;
+CREATE TRIGGER update_profiles_modtime 
+BEFORE UPDATE ON public.profiles 
+FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();

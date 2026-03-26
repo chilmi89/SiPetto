@@ -16,17 +16,15 @@
 export const ROLE_REDIRECTS: Record<string, string> = {
   ADMIN:  "/backend/admin/dashboard",
   TENANT: "/backend/tenant",
-  STAFF:  "/backend/staff",   // tambahkan halaman ini jika sudah ada
-  // Tambahkan role baru di bawah ini:
-  // KASIR:    "/backend/kasir",
-  // MANAJER:  "/backend/manajer",
+  OWNER:  "/backend/tenant",  // Arahkan Owner ke folder tenant
+  STAFF:  "/backend/staff",
 };
 
 /**
  * Default redirect jika role tidak ada di mapping di atas.
  * Bisa diubah ke halaman "akses ditolak" atau dashboard umum.
  */
-export const DEFAULT_REDIRECT = "/backend/admin/dashboard";
+export const DEFAULT_REDIRECT = "/unauthorized";
 
 /**
  * Helper: ambil path redirect berdasarkan nama role.

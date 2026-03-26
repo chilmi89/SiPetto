@@ -1,0 +1,315 @@
+"use client";
+
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  User, Store, Mail, Phone, MapPin, Edit, CheckCircle, UserCircle, 
+  ArrowRight, ArrowLeft, ShieldCheck, Calendar, Camera, AlignLeft, 
+  Loader2, Image as ImageIcon, Save
+} from 'lucide-react';
+import { toast } from 'react-toastify';
+
+interface Profile {
+  id: string;
+  email: string;
+  full_name: string;
+  business_name: string;
+  phone_number: string;
+  address: string;
+  bio?: string;
+  role_name: string;
+  is_active: boolean;
+  created_at: string;
+  avatar_url?: string;
+  banner_url?: string;
+}
+
+const ProfileTenantPage = () => {
+    const [profile, setProfile] = useState<Profile | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [isEditing, setIsEditing] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const bannerInputRef = useRef<HTMLInputElement>(null);
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+    const [bannerFile, setBannerFile] = useState<File | null>(null);
+    const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+    const [uploadingFiles, setUploadingFiles] = useState(false);
+
+    const [editData, setEditData] = useState({
+        full_name: "", business_name: "", phone_number: "", address: "", bio: ""
+    });
+
+    const fetchProfile = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch('/api/auth/me');
+            const data = await res.json();
+            if (res.ok) {
+                setProfile(data);
+                setEditData({
+                    full_name: data.full_name || "", business_name: data.business_name || "",
+                    phone_number: data.phone_number || "", address: data.address || "", bio: data.bio || ""
+                });
+                setAvatarPreview(data.avatar_url || null);
+                setBannerPreview(data.banner_url || null);
+            } else { toast.error("Gagal mengambil data profil."); }
+        } catch { toast.error("Kesalahan jaringan."); }
+        finally { setLoading(false); }
+    };
+
+    useEffect(() => { fetchProfile(); }, []);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'banner') => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) { toast.error("Hanya file gambar!"); return; }
+        if (file.size > 5 * 1024 * 1024) { toast.error("Maks 5MB"); return; }
+        const url = URL.createObjectURL(file);
+        if (type === 'avatar') { setAvatarFile(file); setAvatarPreview(url); }
+        else { setBannerFile(file); setBannerPreview(url); }
+    };
+
+    const uploadFileToServer = async (file: File, type: 'avatar' | 'banner', oldUrl?: string | null) => {
+        const fd = new FormData();
+        fd.append('file', file);
+        if (oldUrl) fd.append('old_url', oldUrl);
+        const res = await fetch(type === 'avatar' ? '/api/upload/avatar' : '/api/upload/banner', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!res.ok || !data.url) throw new Error(data.error || `Gagal unggah ${type}`);
+        return data.url;
+    };
+
+    const handleUpdate = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        setLoading(true);
+        try {
+            let avUrl = profile?.avatar_url, bnUrl = profile?.banner_url;
+            if (avatarFile || bannerFile) {
+                setUploadingFiles(true);
+                try {
+                    if (avatarFile) avUrl = await uploadFileToServer(avatarFile, 'avatar', profile?.avatar_url);
+                    if (bannerFile) bnUrl = await uploadFileToServer(bannerFile, 'banner', profile?.banner_url);
+                } catch (err: any) { toast.error(err.message); setUploadingFiles(false); setLoading(false); return; }
+                setUploadingFiles(false);
+            }
+            const res = await fetch('/api/umkm', {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: profile?.id, ...editData, avatar_url: avUrl, banner_url: bnUrl }),
+            });
+            const data = await res.json();
+            if (res.ok) { toast.success("Profil berhasil diperbarui!"); setIsEditing(false); setAvatarFile(null); setBannerFile(null); fetchProfile(); }
+            else toast.error(data.error || "Gagal memperbarui profil.");
+        } catch { toast.error("Gagal terhubung ke server."); setUploadingFiles(false); }
+        finally { setLoading(false); }
+    };
+
+    if (loading && !profile) return (
+        <div className="flex min-h-[50vh] items-center justify-center w-full">
+            <div className="flex flex-col items-center gap-3">
+                <div className="w-10 h-10 border-4 border-zinc-100 border-t-[#030037] rounded-full animate-spin" />
+                <span className="text-zinc-400 font-bold tracking-widest text-[10px] uppercase">Mempersiapkan...</span>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="w-full flex flex-col gap-3 pb-16">
+            
+            {/* Header Halaman */}
+            <div className="flex items-center justify-between bg-white rounded-2xl border border-zinc-100 px-6 py-4">
+                <div>
+                    <div className="flex items-center gap-2 text-primary text-[10px] font-bold uppercase tracking-widest mb-1">
+                        <div className="w-4 h-0.5 bg-primary rounded-full" />
+                        Dasbor Pemilik
+                    </div>
+                    <h1 className="text-xl font-bold text-[#030037] tracking-tight">Profil UMKM</h1>
+                </div>
+            </div>
+
+            {/* Peringatan file belum simpan */}
+            {(avatarFile || bannerFile) && !isEditing && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-2xl flex items-center justify-between gap-3 text-xs font-bold">
+                    <span>⭐ Foto baru belum tersimpan. Klik Edit lalu Simpan.</span>
+                    <button onClick={() => setIsEditing(true)} className="px-4 py-1.5 bg-amber-500 text-white rounded-lg text-[10px] uppercase tracking-widest font-bold shrink-0 hover:bg-amber-600 transition-all">Simpan</button>
+                </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════ */}
+            {/* BENTO GRID — Padat, penuh satu layar, tanpa gap kosong     */}
+            {/* ═══════════════════════════════════════════════════════════ */}
+            <div className="grid grid-cols-12 auto-rows-min gap-3 w-full">
+
+                {/* ──── ROW 1: Banner (span 8) + Sidebar Card (span 4) ──── */}
+                
+                {/* Banner */}
+                <div 
+                    className={`col-span-12 lg:col-span-8 h-52 sm:h-64 rounded-2xl overflow-hidden relative group bg-zinc-300 ${isEditing ? 'cursor-pointer ring-2 ring-primary/40' : ''}`}
+                    onClick={() => isEditing && bannerInputRef.current?.click()}
+                >
+                    {bannerPreview ? (
+                        <img src={bannerPreview} alt="Banner" className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-[#030037] via-[#1a1a5e] to-[#3b3bb0] flex items-center justify-center">
+                            <ImageIcon className="w-10 h-10 text-white/15" />
+                        </div>
+                    )}
+                    {isEditing && (
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-all backdrop-blur-sm">
+                            <ImageIcon className="w-10 h-10 text-white mb-2" />
+                            <span className="text-white text-[10px] font-bold uppercase tracking-widest">Ganti Spanduk</span>
+                        </div>
+                    )}
+                    <input type="file" ref={bannerInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'banner')} />
+                </div>
+
+                {/* Sidebar: Avatar + Identity */}
+                <div className="col-span-12 lg:col-span-4 bg-white rounded-2xl border border-zinc-100 p-5 flex flex-col items-center justify-center gap-4 h-52 sm:h-64">
+                    
+                    <div 
+                        className={`w-20 h-20 rounded-2xl bg-zinc-100 overflow-hidden flex items-center justify-center shrink-0 relative group ${isEditing ? 'cursor-pointer ring-2 ring-primary/40' : ''}`}
+                        onClick={() => isEditing && fileInputRef.current?.click()}
+                    >
+                        {avatarPreview ? (
+                            <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+                        ) : (
+                            <UserCircle className="w-12 h-12 text-zinc-300" />
+                        )}
+                        {isEditing && (
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
+                                <Camera className="w-5 h-5 text-white" />
+                            </div>
+                        )}
+                    </div>
+                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'avatar')} />
+
+                    <div className="text-center w-full">
+                        <h2 className="text-lg font-bold text-[#030037] tracking-tight truncate">{profile?.full_name || "Pemilik UMKM"}</h2>
+                        <p className="text-xs text-zinc-400 font-medium truncate">{profile?.email}</p>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap justify-center">
+                        <span className="bg-[#030037]/5 text-[#030037] px-3 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase">{profile?.role_name || "OWNER"}</span>
+                        <span className="flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-emerald-100">
+                            <CheckCircle className="w-3 h-3" /> Verified
+                        </span>
+                    </div>
+
+                    <button onClick={() => setIsEditing(!isEditing)} className={`w-full flex items-center gap-2 justify-center px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${isEditing ? 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200' : 'bg-[#030037] text-white hover:bg-primary'}`}>
+                        {isEditing ? <><ArrowLeft className="w-3.5 h-3.5" /> Batal</> : <><Edit className="w-3.5 h-3.5" /> Edit Profil</>}
+                    </button>
+                </div>
+
+                {/* ──── ROW 2: Bento data tiles (zig-zag) ──── */}
+                
+                {!isEditing ? (
+                    <>
+                        {/* Tile: Nama */}
+                        <BentoTile span={4} icon={<User className="w-4 h-4" />} label="Nama Pemilik" value={profile?.full_name} />
+                        
+                        {/* Tile: Bisnis */}
+                        <BentoTile span={4} icon={<Store className="w-4 h-4" />} label="Nama Bisnis" value={profile?.business_name} />
+                        
+                        {/* Tile: Statistik */}
+                        <div className="col-span-12 lg:col-span-4 bg-white rounded-2xl border border-zinc-100 p-5 flex flex-col justify-center gap-3">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Statistik Akun</span>
+                            <div className="flex items-center justify-between text-xs">
+                                <div className="flex items-center gap-2 text-zinc-500"><Calendar className="w-3.5 h-3.5" /> Bergabung</div>
+                                <span className="text-[#030037] font-bold">{profile?.created_at ? new Date(profile.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'short' }) : '-'}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs">
+                                <div className="flex items-center gap-2 text-zinc-500"><ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Status</div>
+                                <span className="text-emerald-600 font-bold">Active</span>
+                            </div>
+                        </div>
+
+                        {/* Tile: Email (wider) */}
+                        <BentoTile span={6} icon={<Mail className="w-4 h-4" />} label="Email" value={profile?.email} />
+                        
+                        {/* Tile: Phone (wider) */}
+                        <BentoTile span={6} icon={<Phone className="w-4 h-4" />} label="Telepon / WA" value={profile?.phone_number} />
+
+                        {/* Tile: Bio (full) */}
+                        {profile?.bio && (
+                            <BentoTile span={12} icon={<AlignLeft className="w-4 h-4" />} label="Bio / Tagline Bisnis" value={profile?.bio} accent />
+                        )}
+
+                        {/* Tile: Address (full) */}
+                        <BentoTile span={12} icon={<MapPin className="w-4 h-4 " />} label="Alamat Operasional" value={profile?.address} />
+                    </>
+                ) : (
+                    /* ──── EDITING MODE: Full-width form card ──── */
+                    <div className="col-span-12 bg-white rounded-2xl border border-zinc-100 p-6 sm:p-8 relative overflow-hidden">
+                        {uploadingFiles && (
+                            <div className="absolute inset-0 bg-white/90 z-20 flex flex-col items-center justify-center backdrop-blur-sm rounded-2xl">
+                                <Loader2 className="w-10 h-10 text-primary animate-spin mb-3" />
+                                <span className="text-xs font-bold uppercase tracking-widest text-[#030037]">Mengunggah berkas...</span>
+                            </div>
+                        )}
+                        
+                        <div className="flex items-center gap-3 border-b border-zinc-100 pb-4 mb-6">
+                            <div className="p-2 bg-primary/10 rounded-xl"><Edit className="w-4 h-4 text-primary" /></div>
+                            <h4 className="text-sm font-bold uppercase tracking-widest text-[#030037]">Edit Data Profil</h4>
+                        </div>
+
+                        <form onSubmit={handleUpdate} className="space-y-5">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <FormField label="Nama Lengkap" value={editData.full_name} onChange={(v) => setEditData({...editData, full_name: v})} icon={<User className="w-3.5 h-3.5 text-zinc-400" />} />
+                                <FormField label="Nama Bisnis" value={editData.business_name} onChange={(v) => setEditData({...editData, business_name: v})} icon={<Store className="w-3.5 h-3.5 text-zinc-400" />} />
+                                <FormField label="No. Telepon / WA" value={editData.phone_number} onChange={(v) => setEditData({...editData, phone_number: v})} icon={<Phone className="w-3.5 h-3.5 text-zinc-400" />} />
+                            </div>
+                            
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 ml-1">Bio / Tagline</label>
+                                <textarea value={editData.bio} onChange={(e) => setEditData({...editData, bio: e.target.value})} rows={2}
+                                    className="w-full bg-zinc-50 border border-zinc-200 text-[#030037] p-3 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium text-sm resize-none"
+                                    placeholder="Deskripsi singkat bisnis Anda..." />
+                            </div>
+                            
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 ml-1">Alamat Lengkap</label>
+                                <textarea value={editData.address} onChange={(e) => setEditData({...editData, address: e.target.value})} rows={2}
+                                    className="w-full bg-zinc-50 border border-zinc-200 text-[#030037] p-3 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium text-sm resize-none"
+                                    placeholder="Jalan, RT/RW, Kelurahan, Kecamatan, Kota" />
+                            </div>
+                            
+                            <button type="submit" disabled={loading} className="w-full bg-[#030037] py-3.5 rounded-xl text-xs font-bold uppercase tracking-widest text-white hover:bg-primary transition-all flex items-center justify-center gap-3 shadow-lg shadow-[#030037]/10">
+                                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                {loading ? "Menyimpan..." : "Simpan Semua Perubahan"}
+                            </button>
+                        </form>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+/* ════════ BENTO TILE ════════ */
+const BentoTile = ({ span, icon, label, value, accent = false }: { span: number; icon: React.ReactNode; label: string; value?: string | null; accent?: boolean }) => {
+    const colClass = span === 12 ? 'col-span-12' : span === 6 ? 'col-span-12 sm:col-span-6' : 'col-span-12 sm:col-span-6 lg:col-span-4';
+    return (
+        <div className={`${colClass} ${accent ? 'bg-primary/5 border-primary/10' : 'bg-white border-zinc-100'} rounded-2xl border p-5 flex flex-col gap-2 hover:shadow-md hover:border-primary/20 transition-all group`}>
+            <div className="flex items-center gap-2.5 pt-2">
+                <div className={`p-2 ${accent ? 'bg-primary/10 text-primary' : 'bg-zinc-50 text-zinc-400'} rounded-xl group-hover:bg-primary group-hover:text-white transition-colors shrink-0`}>{icon}</div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">{label}</span>
+            </div>
+            <p className="text-[#030037] font-bold text-sm tracking-tight leading-relaxed break-words">
+                {value || <span className="text-zinc-300 italic font-medium text-xs">Belum diisi</span>}
+            </p>
+        </div>
+    );
+};
+
+/* ════════ FORM FIELD ════════ */
+const FormField = ({ label, value, onChange, icon }: { label: string; value: string; onChange: (v: string) => void; icon: React.ReactNode }) => (
+    <div className="space-y-2">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 ml-1">{label}</label>
+        <div className="relative">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2">{icon}</div>
+            <input value={value} onChange={(e) => onChange(e.target.value)}
+                className="w-full bg-zinc-50 border border-zinc-200 text-[#030037] p-3 pl-9 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium text-sm" />
+        </div>
+    </div>
+);
+
+export default ProfileTenantPage;

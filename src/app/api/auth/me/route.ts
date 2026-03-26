@@ -19,19 +19,23 @@ export async function GET() {
       role_name: string | null;
     };
 
-    // Ambil full_name dari database
+    // Ambil full detail dari database
     const profile = await prisma.profiles.findUnique({
       where: { id: decoded.id },
-      select: { full_name: true, email: true },
+      include: { roles: true }
     });
 
+    if (!profile) return NextResponse.json({ error: "Profil tidak ditemukan." }, { status: 404 });
+
+    // Hapus data sensitif jika ada
+    const { ...userProfile } = profile;
+
     return NextResponse.json({
-      id: decoded.id,
-      email: profile?.email ?? decoded.email,
-      full_name: profile?.full_name ?? null,
-      role_name: decoded.role_name ?? null,
+        ...userProfile,
+        role_name: profile.roles?.name || decoded.role_name,
     });
   } catch (err) {
-    return NextResponse.json({ error: "Token tidak valid." }, { status: 401 });
+    console.error("AUTH ME ERROR:", err);
+    return NextResponse.json({ error: "Token tidak valid atau sistem bermasalah." }, { status: 401 });
   }
 }

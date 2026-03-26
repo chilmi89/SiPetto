@@ -20,7 +20,7 @@ export const LoginCard = () => {
 
           <form className="space-y-3 xl:space-y-4">
             <div className="space-y-1">
-              <label className="text-[9px] xl:text-[10px] font-black uppercase tracking-[0.1em] text-white/60 ml-1">Email Address</label>
+              <label className="text-[9px] xl:text-[10px] font-black uppercase tracking-[0.1em] text-white/60 ml-1">Email</label>
               <div className="relative group/input">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 group-focus-within/input:text-white transition-colors" />
                 <input 

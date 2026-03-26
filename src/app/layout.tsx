@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Outfit } from "next/font/google";
+import { Inter, Outfit, Plus_Jakarta_Sans } from "next/font/google";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./globals.css";
@@ -11,6 +11,11 @@ const inter = Inter({
 
 const outfit = Outfit({
   variable: "--font-outfit",
+  subsets: ["latin"],
+});
+
+const jakartaSans = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin"],
 });
 
@@ -27,7 +32,7 @@ export default function RootLayout({
   return (
     <html
       lang="id"
-      className={`${inter.variable} ${outfit.variable} h-full antialiased`}
+      className={`${inter.variable} ${outfit.variable} ${jakartaSans.variable} h-full antialiased`}
     >
       <body className="font-sans min-h-full flex flex-col">
         {children}

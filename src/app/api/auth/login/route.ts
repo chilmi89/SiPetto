@@ -20,7 +20,7 @@ export async function POST(req: Request) {
       include: { roles: true },
     });
 
-    if (!user) {
+    if (!user || !user.password) {
       return NextResponse.json(
         { error: "Email atau password salah." },
         { status: 401 }

@@ -32,14 +32,18 @@ export const RegisterCard = () => {
         return;
       }
 
-      toast.success('Registrasi berhasil! Silakan login.');
-      router.push('/login');
+      // Simpan profile_id untuk dipakai di halaman UMKM (step 2)
+      sessionStorage.setItem('pending_profile_id', data.user.id);
+
+      toast.success('Akun berhasil dibuat! Lengkapi profil UMKM Anda.');
+      router.push('/umkm');
     } catch (err) {
       toast.error('Gagal terhubung ke server.');
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="flex justify-center lg:justify-end animate-in fade-in zoom-in duration-700 delay-200 w-full">

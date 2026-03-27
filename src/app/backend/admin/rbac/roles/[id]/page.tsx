@@ -4,13 +4,14 @@ import React, { useEffect, useState } from "react";
 import { 
   ShieldCheck, 
   ArrowLeft,
-  Loader2,
   Save,
   Trash2,
   ChevronRight,
   ShieldAlert,
   Edit3
 } from "lucide-react";
+import FullPageLoader from "@/components/layout/FullPageLoader";
+import SectionLoader from "@/components/layout/SectionLoader";
 import Link from "next/link";
 import { toast } from "react-toastify";
 import { useParams, useRouter } from "next/navigation";
@@ -106,14 +107,7 @@ export default function RoleDetailPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="h-[80vh] flex flex-col items-center justify-center gap-4">
-        <Loader2 className="w-10 h-10 animate-spin text-primary" />
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 font-sans">Sinkronisasi Data...</p>
-      </div>
-    );
-  }
+  if (loading) return <FullPageLoader />;
 
   if (error || !role) {
     return (
@@ -133,79 +127,85 @@ export default function RoleDetailPage() {
   const { style, initial } = getRoleStyle(roleName || role.name);
 
   return (
-    <div className="flex flex-col gap-8 w-full animate-in fade-in slide-in-from-bottom-4 duration-700 font-sans pb-20">
+    <div className="flex flex-col gap-8 w-full max-w-full pb-8 animate-in fade-in duration-500">
       
       {/* Breadcrumbs Section */}
-      <div className="flex items-center gap-2 text-zinc-400 text-[10px] font-black uppercase tracking-widest px-1">
-        <Link href="/backend/admin/rbac/roles" className="hover:text-primary transition-all flex items-center gap-2">
-            <ArrowLeft className="w-3.5 h-3.5" />
+      <div className="flex items-center gap-2 text-zinc-400 text-[10px] font-bold uppercase tracking-widest px-1">
+        <Link href="/backend/admin/rbac/roles" className="hover:text-primary transition-all flex items-center gap-2 group">
+            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
             Daftar Peran
         </Link>
-        <ChevronRight className="w-3 h-3" />
-        <span className="text-primary italic">Detail Konfigurasi</span>
+        <ChevronRight className="w-3 h-3 opacity-30" />
+        <span className="text-zinc-500">Detail Konfigurasi</span>
       </div>
 
-      <div className="grid grid-cols-1 gap-8 max-w-4xl">
+      <div className="flex flex-col gap-8 max-w-3xl">
         {/* Simplified Main Card */}
-        <div className="bg-white rounded-2xl border border-zinc-100 shadow-xl shadow-zinc-200/20 overflow-hidden relative group">
-           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32" />
+        <div className="bg-white rounded-xl border border-zinc-100 shadow-xl shadow-zinc-200/10 overflow-hidden relative group">
+           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32 opacity-50" />
            
            <div className="p-10 space-y-10">
               {/* Identity Header */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
                  <div className="flex items-center gap-6">
-                    <div className={`w-16 h-16 rounded-2xl ${style.bg} flex items-center justify-center font-black text-xl tracking-tighter border border-black/5 shadow-inner`}>
+                    <div className={`w-16 h-16 rounded-xl ${style.bg} flex items-center justify-center font-bold text-xl tracking-tighter border border-black/5 shadow-sm transition-transform group-hover:scale-105`}>
                        {initial}
                     </div>
                     <div className="space-y-1">
-                       <h1 className="text-4xl font-black text-zinc-800 tracking-tightest font-heading uppercase leading-none">{role.name}</h1>
+                       <h1 className="text-3xl font-bold text-[#030037] tracking-tighter uppercase leading-none">{role.name}</h1>
                        <div className="flex items-center gap-3">
-                          <span className="px-2 py-0.5 bg-zinc-100 text-zinc-500 rounded text-[9px] font-black uppercase tracking-widest leading-none">PRYMK1</span>
-                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">ID: {role.id}</span>
+                          <span className="px-2 py-0.5 bg-zinc-100 text-zinc-400 rounded text-[9px] font-bold uppercase tracking-widest leading-none">ROLE REGISTRY</span>
+                          <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest">UID: {role.id.split('-')[0]}...</span>
                        </div>
                     </div>
                  </div>
                  
                  <button 
                     onClick={handleDelete}
-                    className="flex items-center justify-center gap-2 px-6 py-4 bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl text-[10px] font-black transition-all shadow-sm active:scale-95 border border-rose-100 uppercase tracking-widest"
+                    className="flex items-center justify-center gap-2 px-5 py-3 bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg text-[10px] font-bold transition-all shadow-sm active:scale-95 border border-rose-100 uppercase tracking-widest"
                  >
                     <Trash2 className="w-4 h-4" />
-                    Hapus Peran
+                    Hapus
                  </button>
               </div>
 
               {/* Simple Edit Form */}
-              <div className="pt-10 border-t border-zinc-50 space-y-10">
+              <div className="pt-10 border-t border-zinc-50 space-y-8">
                  <div className="flex items-center gap-3">
-                    <Edit3 className="w-5 h-5 text-primary" />
-                    <h3 className="text-sm font-black text-zinc-800 uppercase tracking-widest">Ubah Informasi Utama</h3>
+                    <div className="w-1 h-4 bg-primary rounded-full"></div>
+                    <h3 className="text-xs font-bold text-zinc-800 uppercase tracking-widest">Ubah Informasi Utama</h3>
                  </div>
-
-                 <form onSubmit={handleUpdate} className="grid grid-cols-1 gap-10">
+ 
+                 <form onSubmit={handleUpdate} className="space-y-8">
                     <div className="space-y-3">
-                       <label className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-400">Nama Peran Baru</label>
+                       <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Nama Peran Mnemonic</label>
                        <input 
                          type="text" 
                          value={roleName}
                          onChange={(e) => setRoleName(e.target.value)}
-                         className="w-full px-8 py-5 bg-zinc-50 border border-zinc-100 rounded-2xl text-base font-black text-zinc-950 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all shadow-inner placeholder:text-zinc-300"
+                         className="w-full px-6 py-4 bg-zinc-50 border border-zinc-100 rounded-xl text-sm font-bold text-zinc-950 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all shadow-sm placeholder:text-zinc-300"
                          placeholder="Masukan nama peran..."
+                         suppressHydrationWarning
                        />
-                       <p className="text-[10px] font-bold text-zinc-400 flex items-center gap-2 italic">
-                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                          Nama peran ini bersifat unik dan akan digunakan di seluruh modul RBAC.
+                       <p className="text-[10px] font-medium text-zinc-400 flex items-center gap-2 italic">
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 opacity-60" />
+                          Nama peran ini digunakan untuk identifikasi otoritas di seluruh sistem.
                        </p>
                     </div>
-
-                    <div className="pt-6 border-t border-zinc-50 flex items-center justify-between">
-                       <p className="text-[10px] font-black text-zinc-300 uppercase tracking-widest italic">Sinkronisasi Real-time Aktif</p>
+ 
+                    <div className="pt-8 border-t border-zinc-50 flex items-center justify-between">
+                       <div className="flex flex-col">
+                          <span className="text-[9px] font-bold text-zinc-300 uppercase tracking-widest">STAMP REGISTRY</span>
+                          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                            {new Date(role.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </span>
+                       </div>
                        <button 
                          type="submit"
                          disabled={isUpdating || !roleName.trim() || roleName === role.name}
-                         className="flex items-center justify-center gap-3 px-12 py-5 bg-primary text-white rounded-2xl text-[10px] font-black transition-all shadow-xl shadow-primary/20 hover:bg-primary/95 disabled:opacity-50 disabled:shadow-none uppercase tracking-widest active:scale-98 group flex-shrink-0"
+                         className="flex items-center justify-center gap-3 px-8 py-3.5 bg-[#030037] text-white rounded-xl text-[10px] font-bold transition-all shadow-xl shadow-zinc-200 hover:bg-black disabled:opacity-50 disabled:shadow-none uppercase tracking-widest active:scale-95 group"
                        >
-                         {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 group-hover:scale-110 transition-transform" />}
+                         <Save className="w-4 h-4 group-hover:scale-110 transition-transform" />
                          Simpan Perubahan
                        </button>
                     </div>

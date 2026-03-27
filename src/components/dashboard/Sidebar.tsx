@@ -33,7 +33,17 @@ const navItems = [
       { label: "Daftar Izin", href: "/backend/admin/rbac/permission" },
     ]
   },
-  { icon: ArrowRightLeft, label: "Transaksi", href: "/backend/admin/transactions" },
+  { 
+    icon: ArrowRightLeft, 
+    label: "Transaksi", 
+    href: "/backend/admin/transactions",
+    subItems: [
+      { label: "Dashboard Transaksi", href: "/backend/admin/transactions" },
+      { label: "Kategori Transaksi", href: "/backend/admin/transactions/kategori-transaksi" },
+      { label: "Metode Pembayaran", href: "/backend/admin/transactions/metode-pembayaran" },
+    ]
+  },
+
   { icon: FileText, label: "Laporan Pendapatan", href: "/backend/admin/reports" },
   { icon: ShieldAlert, label: "Pusat Keamanan", href: "/backend/admin/security" },
   { icon: Settings, label: "Pengaturan", href: "/backend/admin/settings" },
@@ -43,9 +53,7 @@ export const Sidebar = () => {
   const pathname = usePathname();
   const { isOpen, closeSidebar } = useSidebar();
   const [mounted, setMounted] = useState(false);
-  const [openSubMenus, setOpenSubMenus] = useState<Record<string, boolean>>({
-    "Peran & Izin": true // Default open for demonstration
-  });
+  const [openSubMenus, setOpenSubMenus] = useState<Record<string, boolean>>({});
 
   const toggleSubMenu = (label: string) => {
     setOpenSubMenus(prev => ({ ...prev, [label]: !prev[label] }));
@@ -53,12 +61,14 @@ export const Sidebar = () => {
 
   useEffect(() => {
     setMounted(true);
-    // Check if current path belongs to a sub-menu to keep it open
-    navItems.forEach(item => {
-      if (item.subItems?.some(sub => pathname === sub.href)) {
-        setOpenSubMenus(prev => ({ ...prev, [item.label]: true }));
+    // Otomatis buka submenu hanya jika URL aktif ada di dalamnya
+    const initial: Record<string, boolean> = {};
+  navItems.forEach(item => {
+      if (item.subItems?.some(sub => pathname.startsWith(sub.href) || pathname === sub.href)) {
+        initial[item.label] = true;
       }
     });
+    setOpenSubMenus(initial);
   }, [pathname]);
 
   if (!mounted) return null;
@@ -79,8 +89,8 @@ export const Sidebar = () => {
       >
         <div className="flex items-center justify-between mb-10 pt-2 shrink-0">
           <div>
-            <h1 className="text-2xl font-black tracking-tightest font-heading uppercase italic">Sippeto</h1>
-            <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em] mt-1.5 font-sans leading-none">
+            <h1 className="text-2xl font-bold tracking-tightest uppercase italic">Sippeto</h1>
+            <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.3em] mt-1.5 leading-none">
               Control Center
             </p>
           </div>
@@ -113,7 +123,7 @@ export const Sidebar = () => {
                           isActive ? "text-primary-light text-white" : "text-white/20 group-hover:text-white"
                         }`}
                       />
-                      <span className={`text-sm tracking-tight ${isActive ? 'font-black' : 'font-bold'}`}>{item.label}</span>
+                      <span className={`text-sm tracking-tight ${isActive ? 'font-bold' : 'font-semibold'}`}>{item.label}</span>
                     </div>
                     {isSubMenuOpen ? <ChevronDown className="w-4 h-4 opacity-40 shrink-0" /> : <ChevronRight className="w-4 h-4 opacity-40 shrink-0" />}
                   </button>
@@ -130,7 +140,7 @@ export const Sidebar = () => {
                         isActive ? "text-white" : "text-white/20 group-hover:text-white"
                       }`}
                     />
-                    <span className={`text-sm tracking-tight ${isActive ? 'font-black' : 'font-bold'}`}>{item.label}</span>
+                    <span className={`text-sm tracking-tight ${isActive ? 'font-bold' : 'font-semibold'}`}>{item.label}</span>
                   </Link>
                 )}
 
@@ -150,8 +160,8 @@ export const Sidebar = () => {
                             onClick={() => { if (window.innerWidth < 1024) closeSidebar(); }}
                             className={`flex items-center px-4 py-2.5 rounded-xl text-xs transition-all ${
                               isSubActive 
-                                ? "text-white font-black bg-white/5" 
-                                : "text-white/30 hover:text-white hover:bg-white/5 font-bold"
+                                ? "text-white font-bold bg-white/5" 
+                                : "text-white/30 hover:text-white hover:bg-white/5 font-semibold"
                             }`}
                           >
                             <span className="truncate">{sub.label}</span>
@@ -169,7 +179,7 @@ export const Sidebar = () => {
         <div className="mt-auto pt-6 border-t border-white/5 shrink-0">
           <button className="flex items-center gap-3 w-full px-5 py-4 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white rounded-2xl transition-all group">
             <HelpCircle className="w-5 h-5 text-white/20 group-hover:text-white" />
-            <span className="text-sm font-black tracking-tight">Pusat Bantuan</span>
+            <span className="text-sm font-bold tracking-tight">Pusat Bantuan</span>
           </button>
         </div>
       </aside>

@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS public.categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
-    type VARCHAR(20) CHECK (type IN ('INCOME', 'EXPENSE')) NOT NULL,
+    type VARCHAR(20) CHECK (type IN ('pengeluaran', 'pemasukan')) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(profile_id, name, type)
 );

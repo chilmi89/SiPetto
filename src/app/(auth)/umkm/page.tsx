@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { WelcomeSection } from '@/components/auth/WelcomeSection';
+import FullPageLoader from '@/components/layout/FullPageLoader';
 
 const UmkmPage = () => {
     const [isMounted, setIsMounted] = useState(false);
@@ -74,6 +75,7 @@ const UmkmPage = () => {
 
     return (
         <div className="min-h-screen w-full bg-gradient-animate flex flex-col font-sans selection:bg-white/20 selection:text-white relative overflow-x-hidden" suppressHydrationWarning>
+            {loading && <FullPageLoader />}
             {/* Background Decorations */}
             <div className="fixed top-[15%] left-[-10%] w-[50%] h-[50%] bg-white/5 blur-[120px] rounded-full animate-pulse z-0 pointer-events-none" />
             <div className="fixed bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-brand-accent/10 blur-[120px] rounded-full animate-pulse delay-700 z-0 pointer-events-none" />

@@ -8,10 +8,11 @@ import {
   ChevronLeft, 
   ChevronRight,
   Filter,
-  Loader2,
   Trash2,
   Edit
 } from "lucide-react";
+import FullPageLoader from "@/components/layout/FullPageLoader";
+import SectionLoader from "@/components/layout/SectionLoader";
 import Link from "next/link";
 import { toast } from "react-toastify";
 
@@ -95,76 +96,68 @@ export default function RolesPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-700 font-sans">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-8 rounded-2xl border border-zinc-100 shadow-xl shadow-zinc-200/20">
+    <div className="flex flex-col gap-8 w-full max-w-full pb-8 animate-in fade-in duration-500">
+      {loading && <FullPageLoader />}
+      
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-primary">
-            <ShieldCheck className="w-5 h-5" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Master Data</span>
+          <div className="flex items-center gap-2">
+             <div className="w-4 h-[2px] bg-primary rounded-full"></div>
+             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest leading-none">Access Control</span>
           </div>
-          <h1 className="text-3xl font-black text-zinc-800 tracking-tightest font-heading uppercase">Daftar Peran</h1>
-          <p className="text-xs font-bold text-zinc-400">Kelola informasi dasar dan metadata peran sistem.</p>
+          <h1 className="text-3xl font-bold text-[#030037] tracking-tighter leading-none">
+            Master <span className="text-primary font-medium">Peran</span>
+          </h1>
+          <p className="text-sm font-medium text-zinc-500 max-w-xl">
+            Kelola informasi dasar dan metadata peran sistem untuk mengatur hierarki akses.
+          </p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-primary hover:bg-primary/95 text-white px-6 py-3.5 rounded-xl text-xs font-black transition-all shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] uppercase tracking-widest"
+          className="flex items-center gap-2 px-6 py-2.5 bg-[#030037] hover:bg-black text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-xl shadow-zinc-200/50 active:scale-95 transition-all group border border-white/5"
         >
-          <Plus className="w-4 h-4" />
-          Tambah Peran
+          <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
+          Tambah Peran Baru
         </button>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="relative group w-full md:w-96">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 group-focus-within:text-primary transition-colors" />
-          <input 
-            type="text" 
-            placeholder="Cari nama peran..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3.5 bg-white border border-zinc-100 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-zinc-300"
-          />
+      {/* Table Section */}
+      <div className="bg-white rounded-xl border border-zinc-100 shadow-xl shadow-zinc-200/10 overflow-hidden flex flex-col">
+        {/* Table Filter Area */}
+        <div className="px-8 py-6 border-b border-zinc-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="relative group max-w-sm w-full">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 group-focus-within:text-primary transition-colors" />
+            <input 
+              type="text" 
+              placeholder="Cari nama peran..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-zinc-50 border border-zinc-100 rounded-lg py-2.5 pl-11 pr-4 outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white text-sm font-medium transition-all"
+              suppressHydrationWarning
+            />
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-           <button className="flex items-center gap-2 px-5 py-3.5 bg-white border border-zinc-100 text-zinc-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-50 transition-all">
-            <Filter className="w-3.5 h-3.5" />
-            Urutkan
-          </button>
-        </div>
-      </div>
 
       {/* Table Section */}
-      <div className="bg-white rounded-2xl border border-zinc-100 shadow-2xl shadow-zinc-200/30 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-zinc-50/50">
-              <tr>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400 text-left">Nama Peran</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400 text-left">Dibuat Pada</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400 text-left">Status</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400 text-center">Aksi</th>
+        {/* The Table */}
+        <div className="overflow-x-auto min-h-[400px]">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-zinc-50/50">
+                <th className="px-8 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Identitas Peran</th>
+                <th className="px-8 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Metadata</th>
+                <th className="px-8 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Status</th>
+                <th className="px-8 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-50">
               {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-11 h-11 bg-zinc-100 rounded-xl" />
-                        <div className="space-y-2">
-                          <div className="h-4 w-32 bg-zinc-100 rounded" />
-                          <div className="h-3 w-20 bg-zinc-50 rounded" />
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6"><div className="h-4 w-24 bg-zinc-100 rounded" /></td>
-                    <td className="px-8 py-6"><div className="h-4 w-16 bg-zinc-100 rounded" /></td>
-                    <td className="px-8 py-6"><div className="h-8 w-20 bg-zinc-100 rounded-lg mx-auto" /></td>
-                  </tr>
-                ))
+                <tr>
+                   <td colSpan={4} className="py-24">
+                      <SectionLoader text="Mengambil Data Peran..." />
+                   </td>
+                </tr>
               ) : error ? (
                 <tr>
                   <td colSpan={4} className="px-8 py-20 text-center">
@@ -188,39 +181,42 @@ export default function RolesPage() {
                   const { style, initial } = getRoleStyle(role.name);
                   return (
                     <tr key={role.id} className="group hover:bg-zinc-50/50 transition-colors">
-                      <td className="px-8 py-6">
+                    <td className="px-8 py-5">
                         <Link href={`/backend/admin/rbac/roles/${role.id}`} className="flex items-center gap-4">
-                          <div className={`w-11 h-11 rounded-xl ${style.bg} flex items-center justify-center font-black text-sm tracking-tight border border-black/5 shadow-inner`}>
+                          <div className={`w-11 h-11 rounded-lg ${style.bg} flex items-center justify-center font-bold text-sm tracking-tight border border-black/5 shadow-sm`}>
                             {initial}
                           </div>
                           <div className="space-y-0.5">
-                            <p className="text-sm font-black text-zinc-800 tracking-tight">{role.name}</p>
-                            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Detail & Izin</p>
+                            <p className="text-sm font-bold text-zinc-800 tracking-tight uppercase hover:text-primary transition-colors">{role.name}</p>
+                            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Klik konfigurasi izin</p>
                           </div>
                         </Link>
                       </td>
-                      <td className="px-8 py-6">
-                        <p className="text-xs font-bold text-zinc-500">
-                          {new Date(role.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-                        </p>
+                      <td className="px-8 py-5">
+                        <div className="flex flex-col">
+                           <span className="text-[11px] font-bold text-zinc-500">
+                             {new Date(role.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                           </span>
+                           <span className="text-[9px] font-black text-zinc-200 uppercase tracking-widest">STAMP REGISTRY</span>
+                        </div>
                       </td>
-                      <td className="px-8 py-6">
+                      <td className="px-8 py-5">
                         <div className="flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          <span className="text-[11px] font-black tracking-tight text-emerald-500 uppercase">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                          <span className="text-[11px] font-bold tracking-tighter text-emerald-500 uppercase">
                             Aktif
                           </span>
                         </div>
                       </td>
-                      <td className="px-8 py-6">
-                        <div className="flex items-center justify-center gap-2">
+                      <td className="px-8 py-5">
+                        <div className="flex items-center justify-center gap-3">
                           <Link 
                             href={`/backend/admin/rbac/roles/${role.id}`}
-                            className="p-2 text-zinc-400 hover:text-primary transition-all rounded-xl hover:bg-white hover:shadow-sm active:scale-90"
+                            className="p-2 text-zinc-400 hover:text-primary transition-all hover:bg-zinc-50 rounded-lg border border-transparent hover:border-zinc-100 shadow-sm active:scale-90"
                           >
                             <Edit className="w-4 h-4" />
                           </Link>
-                          <button className="p-2 text-zinc-400 hover:text-rose-500 transition-all rounded-xl hover:bg-white hover:shadow-sm active:scale-90">
+                          <button className="p-2 text-zinc-400 hover:text-rose-500 transition-all hover:bg-zinc-50 rounded-lg border border-transparent hover:border-zinc-100 shadow-sm active:scale-90">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -294,9 +290,7 @@ export default function RolesPage() {
                       disabled={isSubmitting || !newRoleName.trim()}
                       className="flex-[2] px-8 py-4 bg-primary text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:bg-primary/95 transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
                     >
-                      {isSubmitting ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : "Simpan Peran"}
+                      Simpan Peran
                     </button>
                   </div>
                 </form>

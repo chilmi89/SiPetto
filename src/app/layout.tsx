@@ -33,6 +33,7 @@ export default function RootLayout({
     <html
       lang="id"
       className={`${inter.variable} ${outfit.variable} ${jakartaSans.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="font-sans min-h-full flex flex-col">
         {children}

@@ -16,11 +16,13 @@ import {
   X,
   ChevronDown,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Receipt
 } from "lucide-react";
 
 const tenantNavItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/backend/tenant" },
+  { icon: Receipt, label: "Catatan Transaksi", href: "/backend/tenant/transactions" },
   { icon: UserCircle, label: "Profil UMKM", href: "/backend/tenant/profile" },
   { icon: Package, label: "Produk Kami", href: "/backend/tenant/products" },
   { icon: ShoppingCart, label: "Pesanan Masuk", href: "/backend/tenant/orders" },

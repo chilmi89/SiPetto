@@ -85,7 +85,9 @@ $$ language 'plpgsql';
 
 DROP TRIGGER IF EXISTS update_profiles_modtime ON public.profiles;
 CREATE TRIGGER update_profiles_modtime 
--- 6. Categories Table (For dynamic Income/Expense categories)
+
+
+-- 6. Categories Table (Master Data Kategorisasi)
 CREATE TABLE IF NOT EXISTS public.categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -95,58 +97,112 @@ CREATE TABLE IF NOT EXISTS public.categories (
     UNIQUE(profile_id, name, type)
 );
 
--- 7. Transactions Table (Catatan Transaksi)
-CREATE TABLE IF NOT EXISTS public.transactions (
+-- 7. Payment Methods (Master Data Metode Pembayaran)
+CREATE TABLE IF NOT EXISTS public.payment_methods (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-    category_id UUID REFERENCES public.categories(id) ON DELETE SET NULL,
-    transaction_date DATE NOT NULL DEFAULT CURRENT_DATE,
-    invoice_number VARCHAR(50),
-    type VARCHAR(20) CHECK (type IN ('INCOME', 'EXPENSE')) NOT NULL,
-    net_amount NUMERIC(15, 2) DEFAULT 0,
-    tax_amount NUMERIC(15, 2) DEFAULT 0,
-    other_fees NUMERIC(15, 2) DEFAULT 0,
-    total_amount NUMERIC(15, 2) GENERATED ALWAYS AS (net_amount + tax_amount + other_fees) STORED,
+    name VARCHAR(50) NOT NULL, -- 'Tunai', 'Transfer', 'Digital'
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(profile_id, name)
+);
+
+-- 8. Transaction Groups (HEADER / SESI PENCATATAN)
+-- Bertindak sebagai koleksi transaksi dalam satu inputan (Grouping)
+CREATE TABLE IF NOT EXISTS public.transaction_groups (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    reference_number VARCHAR(100) UNIQUE, -- Nomor Nota / Referensi TRX-XXXX
+    transaction_date DATE DEFAULT CURRENT_DATE,
+    total_income NUMERIC(15, 2) DEFAULT 0,
+    total_expense NUMERIC(15, 2) DEFAULT 0,
+    net_balance NUMERIC(15, 2) DEFAULT 0, -- Income - Expense
     description TEXT,
-    notes TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 8. Accounting Settings (Pengaturan Pembukuan)
-CREATE TABLE IF NOT EXISTS public.accounting_settings (
-    profile_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
-    currency VARCHAR(10) DEFAULT 'Rp',
-    start_date DATE DEFAULT CURRENT_DATE,
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+-- 9. Transaction Items (DETAIL / MULTI INPUT HYBRID)
+-- Mendukung baris berbeda tipe (Pendapatan & Pengeluaran) dalam satu nota
+CREATE TABLE IF NOT EXISTS public.transaction_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_id UUID REFERENCES public.transaction_groups(id) ON DELETE CASCADE,
+    category_id UUID REFERENCES public.categories(id) ON DELETE SET NULL,
+    payment_method_id UUID REFERENCES public.payment_methods(id) ON DELETE SET NULL,
+    type VARCHAR(20) CHECK (type IN ('INCOME', 'EXPENSE')) NOT NULL,
+    name VARCHAR(255), -- Keterangan Item
+    amount NUMERIC(15, 2) DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Enable RLS for New Tables
+-- 10. Transaction Attachments
+CREATE TABLE IF NOT EXISTS public.transaction_attachments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_id UUID REFERENCES public.transaction_groups(id) ON DELETE CASCADE,
+    file_url TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 11. Trigger: Advance Total Group Calculator
+CREATE OR REPLACE FUNCTION update_group_financials()
+RETURNS TRIGGER AS $$
+DECLARE
+    target_group_id UUID;
+BEGIN
+    IF (TG_OP = 'DELETE') THEN
+        target_group_id := OLD.group_id;
+    ELSE
+        target_group_id := NEW.group_id;
+    END IF;
+
+    UPDATE public.transaction_groups
+    SET 
+        total_income = (SELECT COALESCE(SUM(amount), 0) FROM public.transaction_items WHERE group_id = target_group_id AND type = 'INCOME'),
+        total_expense = (SELECT COALESCE(SUM(amount), 0) FROM public.transaction_items WHERE group_id = target_group_id AND type = 'EXPENSE'),
+        net_balance = (
+            (SELECT COALESCE(SUM(amount), 0) FROM public.transaction_items WHERE group_id = target_group_id AND type = 'INCOME') - 
+            (SELECT COALESCE(SUM(amount), 0) FROM public.transaction_items WHERE group_id = target_group_id AND type = 'EXPENSE')
+        )
+    WHERE id = target_group_id;
+    
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_update_financials ON public.transaction_items;
+CREATE TRIGGER trg_update_financials
+AFTER INSERT OR UPDATE OR DELETE ON public.transaction_items
+FOR EACH ROW EXECUTE FUNCTION update_group_financials();
+
+-- 🔒 RLS (Row Level Security)
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.accounting_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payment_methods ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transaction_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transaction_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transaction_attachments ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for Categories
-CREATE POLICY "Users can manage their own categories" ON public.categories
-    FOR ALL USING (auth.uid() = profile_id);
+CREATE POLICY "Manage Categories" ON public.categories FOR ALL USING (auth.uid() = profile_id);
+CREATE POLICY "Manage Payment Methods" ON public.payment_methods FOR ALL USING (auth.uid() = profile_id);
+CREATE POLICY "Manage Groups" ON public.transaction_groups FOR ALL USING (auth.uid() = profile_id);
+CREATE POLICY "Manage Items via Group" ON public.transaction_items 
+FOR ALL USING (EXISTS (SELECT 1 FROM public.transaction_groups g WHERE g.id = group_id AND g.profile_id = auth.uid()));
 
--- RLS Policies for Transactions
-CREATE POLICY "Users can manage their own transactions" ON public.transactions
-    FOR ALL USING (auth.uid() = profile_id);
-
--- RLS Policies for Accounting Settings
-CREATE POLICY "Users can manage their own settings" ON public.accounting_settings
-    FOR ALL USING (auth.uid() = profile_id);
-
--- 📋 URUT PENGERJAAN (Roadmap/Task List):
+-- 📊 LANGKAH INTEGRASI FINAL (PENTING):
 /*
-1. MASKR: Eksekusi SQL ini di Supabase SQL Editor untuk membuat tabel dasar.
-2. PRISMA: Jalankan 'npx prisma db pull' kemudian 'npx prisma generate' agar model terbaca di Next.js.
-3. SETUP MODUL (Pengaturan):
-   - Buat fungsi CRUD untuk Tabel 'Categories' (Pendapatan & Pengeluaran).
-   - Buat form untuk 'Accounting Settings' (Mata Uang & Tanggal Mulai).
-4. TRANSACTION MODUL (Catatan Transaksi):
-   - Implementasi form input transaksi yang terhubung ke Kategori.
-   - Buat tabel list 'Catatan Transaksi' sesuai layout Excel yang Anda berikan.
-5. DASHBOARD INTEGRATION:
-   - Hubungkan data dari tabel 'transactions' ke grafik AreaChart yang sudah kita buat sebelumnya (Saldo, Pendapatan, Pengeluaran).
+1. Jalankan SQL ini di Supabase SQL Editor.
+2. 'npx prisma db pull' untuk sinkronisasi schema.prisma.
+3. API POS tinggal mengirim 1 Object Header & List Items ke satu endpoint saja.
+*/
+
+
+-- 📊 URUT PENGERJAAN FINAL:
+/*
+1. DATABASE: Run SQL ini di Supabase editor (Fresh Restart jika perlu karena ada penghapusan tabel lama).
+2. PRISMA: Jalankan 'npx prisma db pull' & 'npx prisma generate'.
+3. API KASIR (Multi-input):
+   - Buat satu endpoint POST /api/transactions yang menerima payload 'Header' dan array 'Items'.
+   - Gunakan Prisma Transaction ($transaction) untuk insert Group dan Items dalam satu proses aman.
+4. UI POS / KASIR:
+   - Form dinamis (Repeater) untuk input banyak item sekaligus.
+5. REPORTING:
+   - Dashboard sekarang membaca data langsung dari 'transaction_groups' untuk performa maksimal.
 */

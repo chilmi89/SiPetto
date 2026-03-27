@@ -4,8 +4,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, Store, Mail, Phone, MapPin, Edit, CheckCircle, UserCircle, 
   ArrowRight, ArrowLeft, ShieldCheck, Calendar, Camera, AlignLeft, 
-  Loader2, Image as ImageIcon, Save
+  Image as ImageIcon, Save
 } from 'lucide-react';
+import FullPageLoader from '@/components/layout/FullPageLoader';
+import SectionLoader from '@/components/layout/SectionLoader';
 import { toast } from 'react-toastify';
 
 interface Profile {
@@ -103,14 +105,7 @@ const ProfileTenantPage = () => {
         finally { setLoading(false); }
     };
 
-    if (loading && !profile) return (
-        <div className="flex min-h-[50vh] items-center justify-center w-full">
-            <div className="flex flex-col items-center gap-3">
-                <div className="w-10 h-10 border-4 border-zinc-100 border-t-[#030037] rounded-full animate-spin" />
-                <span className="text-zinc-400 font-bold tracking-widest text-[10px] uppercase">Mempersiapkan...</span>
-            </div>
-        </div>
-    );
+    if (loading && !profile) return <FullPageLoader />;
 
     return (
         <div className="w-full flex flex-col gap-3 pb-16">
@@ -241,8 +236,7 @@ const ProfileTenantPage = () => {
                     <div className="col-span-12 bg-white rounded-2xl border border-zinc-100 p-6 sm:p-8 relative overflow-hidden">
                         {uploadingFiles && (
                             <div className="absolute inset-0 bg-white/90 z-20 flex flex-col items-center justify-center backdrop-blur-sm rounded-2xl">
-                                <Loader2 className="w-10 h-10 text-primary animate-spin mb-3" />
-                                <span className="text-xs font-bold uppercase tracking-widest text-[#030037]">Mengunggah berkas...</span>
+                                <SectionLoader text="Mengunggah berkas..." />
                             </div>
                         )}
                         
@@ -273,7 +267,7 @@ const ProfileTenantPage = () => {
                             </div>
                             
                             <button type="submit" disabled={loading} className="w-full bg-[#030037] py-3.5 rounded-xl text-xs font-bold uppercase tracking-widest text-white hover:bg-primary transition-all flex items-center justify-center gap-3 shadow-lg shadow-[#030037]/10">
-                                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                <Save className="w-4 h-4" />
                                 {loading ? "Menyimpan..." : "Simpan Semua Perubahan"}
                             </button>
                         </form>

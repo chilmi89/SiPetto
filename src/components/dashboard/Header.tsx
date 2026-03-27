@@ -100,7 +100,7 @@ export const DashboardHeader = () => {
             suppressHydrationWarning
           />
         </div>
-        <button className="sm:hidden p-2 bg-zinc-50 rounded-xl">
+        <button className="sm:hidden p-2 bg-zinc-50 rounded-xl" suppressHydrationWarning>
           <Search className="w-5 h-5 text-zinc-500" />
         </button>
       </div>
@@ -124,6 +124,7 @@ export const DashboardHeader = () => {
             <button
               onClick={() => setDropdownOpen(prev => !prev)}
               className="flex items-center gap-3 cursor-pointer px-1 py-1 rounded-xl hover:bg-zinc-50 transition-colors"
+              suppressHydrationWarning
             >
               {/* Avatar */}
               <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden border-2 border-zinc-100 hover:border-indigo-200 transition-all shrink-0">
@@ -180,6 +181,7 @@ export const DashboardHeader = () => {
                 <button
                   onClick={() => { setDropdownOpen(false); router.push("/backend/admin/settings"); }}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
+                  suppressHydrationWarning
                 >
                   <Settings className="w-4 h-4 text-zinc-400" />
                   Pengaturan Akun
@@ -192,6 +194,7 @@ export const DashboardHeader = () => {
                   onClick={handleLogout}
                   disabled={loggingOut}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 transition-colors font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                  suppressHydrationWarning
                 >
                   {loggingOut ? (
                     <>

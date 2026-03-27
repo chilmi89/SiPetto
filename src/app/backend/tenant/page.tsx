@@ -68,19 +68,20 @@ export default function TenantDashboard() {
     <div className="w-full flex flex-col gap-4 py-2 pb-20" style={{ fontFamily: 'var(--font-jakarta), sans-serif' }}>
       
       {/* HEADER TANPA WRAPPER CARD */}
+      {/* HEADER TANPA WRAPPER CARD */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-4 py-2">
-        <div>
-           <div className="flex items-center gap-2 text-primary font-black uppercase tracking-[0.2em] text-[10px] mb-1">
+        <div className="max-w-xl">
+           <div className="flex items-center gap-2 text-primary font-black uppercase tracking-[0.2em] text-[10px] mb-2">
               <div className="w-6 h-1 bg-primary rounded-full" />
               Dashboard Tenant UMKM
            </div>
-           <h1 className="text-4xl font-black text-[#030037] tracking-tighter">Selamat Datang Di <span className="text-primary">Sipetto</span></h1>
-           <p className="text-zinc-500 font-medium text-sm mt-0.5">Laporan grafik performa finansial real-time Anda.</p>
+           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#030037] tracking-tighter leading-[1.1]">Selamat Datang Di <span className="text-primary">Sipetto</span></h1>
+           <p className="text-zinc-500 font-medium text-sm mt-3">Laporan grafik performa finansial real-time Anda.</p>
         </div>
-        <div className="flex items-center gap-4 bg-white/50 backdrop-blur-sm px-6 py-4 rounded-2xl border border-zinc-100 shadow-sm">
-           <div className="flex flex-col items-end">
+        <div className="flex items-center gap-4 bg-white/80 backdrop-blur-md px-6 py-4 rounded-2xl border border-zinc-100 shadow-sm self-start sm:self-center">
+           <div className="flex flex-col items-start sm:items-end">
               <span className="text-[10px] font-black uppercase text-zinc-400 tracking-widest leading-none">Status Sistem</span>
-              <span className="text-emerald-500 font-black text-xs uppercase tracking-widest mt-1 flex items-center gap-2">
+              <span className="text-emerald-500 font-black text-xs uppercase tracking-widest mt-1.5 flex items-center gap-2">
                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Terkoneksi
               </span>
            </div>
@@ -146,28 +147,27 @@ const LargeChartItem = ({ title, value, change, color, data, dataKey, icon, nega
   const keys = Array.isArray(dataKey) ? dataKey : [dataKey];
   const allValues = data.flatMap((d: any) => keys.map(k => d[k]));
   const maxVal = Math.max(...allValues);
-  const minVal = Math.min(...allValues);
 
   return (
-    <div className="bg-white rounded-2xl border border-zinc-100 p-8 sm:p-10 shadow-sm flex flex-col h-[500px] hover:shadow-xl hover:shadow-primary/5 transition-all duration-500 group relative overflow-hidden">
-      <div className="flex items-center justify-between mb-8 relative z-10">
-        <div className="flex items-center gap-5">
-          <div className="p-4 bg-zinc-50 text-zinc-400 rounded-2xl group-hover:bg-primary group-hover:text-white transition-all duration-300 shadow-sm shrink-0">
+    <div className="bg-white rounded-2xl border border-zinc-100 p-6 sm:p-10 shadow-sm flex flex-col h-[400px] sm:h-[500px] hover:shadow-xl hover:shadow-primary/5 transition-all duration-500 group relative overflow-hidden">
+      <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-4 mb-8 relative z-10">
+        <div className="flex items-center gap-4 sm:gap-5">
+          <div className="p-3 sm:p-4 bg-zinc-50 text-zinc-400 rounded-2xl group-hover:bg-primary group-hover:text-white transition-all duration-300 shadow-sm shrink-0">
             {icon}
           </div>
           <div>
-            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400 block mb-1">{title}</span>
-            <h2 className="text-2xl sm:text-3xl font-black text-[#030037] tracking-tighter leading-none">{value}</h2>
+            <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400 block mb-1">{title}</span>
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-[#030037] tracking-tighter leading-none">{value}</h2>
           </div>
         </div>
-        <div className={`px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-widest ${negative ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'} shadow-sm border border-black/0 group-hover:border-current/10`}>
+        <div className={`shrink-0 px-4 py-2 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-widest ${negative ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'} shadow-sm border border-black/0 group-hover:border-current/10 self-end xs:self-center`}>
           {change}
         </div>
       </div>
       
-      <div className="flex-1 min-h-0 w-full relative z-10 pt-4">
+      <div className="flex-1 min-h-0 w-full relative z-10">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+          <AreaChart data={data} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
             <defs>
               <linearGradient id="colorUntung" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
@@ -185,18 +185,18 @@ const LargeChartItem = ({ title, value, change, color, data, dataKey, icon, nega
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f1f4" vertical={true} />
             <XAxis 
               dataKey="name" 
-              tick={{ fontSize: 10, fill: "#a1a1aa", fontWeight: 800 }} 
+              tick={{ fontSize: 9, fill: "#a1a1aa", fontWeight: 800 }} 
               axisLine={{ stroke: '#f1f1f4' }} 
               tickLine={{ stroke: '#f1f1f4' }} 
-              dy={15}
+              dy={10}
             />
             <YAxis 
               domain={[0, maxVal]}
-              tick={{ fontSize: 11, fill: "#a1a1aa", fontWeight: 800 }} 
+              tick={{ fontSize: 9, fill: "#a1a1aa", fontWeight: 800 }} 
               axisLine={{ stroke: '#f1f1f4' }} 
               tickLine={{ stroke: '#f1f1f4' }} 
               tickFormatter={(v) => `${(v/1000000).toFixed(0)}jt`}
-              width={60}
+              width={40}
             />
             <Tooltip content={<CustomTooltip />} />
             
@@ -206,21 +206,21 @@ const LargeChartItem = ({ title, value, change, color, data, dataKey, icon, nega
                   type="monotone" 
                   dataKey="untung" 
                   stroke="#10b981" 
-                  strokeWidth={4} 
+                  strokeWidth={3} 
                   fill="url(#colorUntung)" 
                   animationDuration={1500}
-                  dot={{ r: 4, fill: "#10b981", stroke: "#fff", strokeWidth: 2, opacity: 1 }}
-                  activeDot={{ r: 8, fill: "#10b981", stroke: "#fff", strokeWidth: 4 }}
+                  dot={{ r: 3, fill: "#10b981", stroke: "#fff", strokeWidth: 2, opacity: 1 }}
+                  activeDot={{ r: 6, fill: "#10b981", stroke: "#fff", strokeWidth: 3 }}
                 />
                 <Area 
                   type="monotone" 
                   dataKey="rugi" 
                   stroke="#f43f5e" 
-                  strokeWidth={4} 
+                  strokeWidth={3} 
                   fill="url(#colorRugi)" 
                   animationDuration={1500}
-                  dot={{ r: 4, fill: "#f43f5e", stroke: "#fff", strokeWidth: 2, opacity: 1 }}
-                  activeDot={{ r: 8, fill: "#f43f5e", stroke: "#fff", strokeWidth: 4 }}
+                  dot={{ r: 3, fill: "#f43f5e", stroke: "#fff", strokeWidth: 2, opacity: 1 }}
+                  activeDot={{ r: 6, fill: "#f43f5e", stroke: "#fff", strokeWidth: 3 }}
                 />
               </>
             ) : (
@@ -228,11 +228,11 @@ const LargeChartItem = ({ title, value, change, color, data, dataKey, icon, nega
                 type="monotone" 
                 dataKey={keys[0]} 
                 stroke={color} 
-                strokeWidth={4} 
+                strokeWidth={3} 
                 fill={`url(#colorGrad-${keys[0]})`} 
                 animationDuration={1500}
-                dot={{ r: 4, fill: color, stroke: "#fff", strokeWidth: 2, opacity: 1 }}
-                activeDot={{ r: 8, fill: color, stroke: "#fff", strokeWidth: 4 }}
+                dot={{ r: 3, fill: color, stroke: "#fff", strokeWidth: 2, opacity: 1 }}
+                activeDot={{ r: 6, fill: color, stroke: "#fff", strokeWidth: 3 }}
               />
             )}
           </AreaChart>

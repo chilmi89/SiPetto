@@ -85,5 +85,68 @@ $$ language 'plpgsql';
 
 DROP TRIGGER IF EXISTS update_profiles_modtime ON public.profiles;
 CREATE TRIGGER update_profiles_modtime 
-BEFORE UPDATE ON public.profiles 
-FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+-- 6. Categories Table (For dynamic Income/Expense categories)
+CREATE TABLE IF NOT EXISTS public.categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    type VARCHAR(20) CHECK (type IN ('INCOME', 'EXPENSE')) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(profile_id, name, type)
+);
+
+-- 7. Transactions Table (Catatan Transaksi)
+CREATE TABLE IF NOT EXISTS public.transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    category_id UUID REFERENCES public.categories(id) ON DELETE SET NULL,
+    transaction_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    invoice_number VARCHAR(50),
+    type VARCHAR(20) CHECK (type IN ('INCOME', 'EXPENSE')) NOT NULL,
+    net_amount NUMERIC(15, 2) DEFAULT 0,
+    tax_amount NUMERIC(15, 2) DEFAULT 0,
+    other_fees NUMERIC(15, 2) DEFAULT 0,
+    total_amount NUMERIC(15, 2) GENERATED ALWAYS AS (net_amount + tax_amount + other_fees) STORED,
+    description TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 8. Accounting Settings (Pengaturan Pembukuan)
+CREATE TABLE IF NOT EXISTS public.accounting_settings (
+    profile_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+    currency VARCHAR(10) DEFAULT 'Rp',
+    start_date DATE DEFAULT CURRENT_DATE,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS for New Tables
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.accounting_settings ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for Categories
+CREATE POLICY "Users can manage their own categories" ON public.categories
+    FOR ALL USING (auth.uid() = profile_id);
+
+-- RLS Policies for Transactions
+CREATE POLICY "Users can manage their own transactions" ON public.transactions
+    FOR ALL USING (auth.uid() = profile_id);
+
+-- RLS Policies for Accounting Settings
+CREATE POLICY "Users can manage their own settings" ON public.accounting_settings
+    FOR ALL USING (auth.uid() = profile_id);
+
+-- 📋 URUT PENGERJAAN (Roadmap/Task List):
+/*
+1. MASKR: Eksekusi SQL ini di Supabase SQL Editor untuk membuat tabel dasar.
+2. PRISMA: Jalankan 'npx prisma db pull' kemudian 'npx prisma generate' agar model terbaca di Next.js.
+3. SETUP MODUL (Pengaturan):
+   - Buat fungsi CRUD untuk Tabel 'Categories' (Pendapatan & Pengeluaran).
+   - Buat form untuk 'Accounting Settings' (Mata Uang & Tanggal Mulai).
+4. TRANSACTION MODUL (Catatan Transaksi):
+   - Implementasi form input transaksi yang terhubung ke Kategori.
+   - Buat tabel list 'Catatan Transaksi' sesuai layout Excel yang Anda berikan.
+5. DASHBOARD INTEGRATION:
+   - Hubungkan data dari tabel 'transactions' ke grafik AreaChart yang sudah kita buat sebelumnya (Saldo, Pendapatan, Pengeluaran).
+*/

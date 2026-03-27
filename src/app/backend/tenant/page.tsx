@@ -1,239 +1,153 @@
 "use client";
 
-import React from "react";
-import { 
-  TrendingUp, TrendingDown, Wallet, DollarSign, 
-  ArrowUpRight, ArrowDownRight
-} from "lucide-react";
+import React, { useEffect, useState } from "react";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
+  TrendingUp, TrendingDown, Wallet, DollarSign, ArrowRight, Receipt, Calendar, Info
+} from "lucide-react";
+import FullPageLoader from "@/components/layout/FullPageLoader";
+import SectionLoader from "@/components/layout/SectionLoader";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { useRouter } from "next/navigation";
 
-/* ════════ DUMMY DATA (Highly Erratic & Unique per Category) ════════ */
-const saldoData = [
-  { name: "Jan", saldo: 25000000 }, { name: "Feb", saldo: 8000000 },  { name: "Mar", saldo: 32000000 },
-  { name: "Apr", saldo: 15000000 }, { name: "Mei", saldo: 29000000 }, { name: "Jun", saldo: 5000000 },
-  { name: "Jul", saldo: 35000000 }, { name: "Ags", saldo: 19000000 }, { name: "Sep", saldo: 10000000 },
-  { name: "Okt", saldo: 28000000 }, { name: "Nov", saldo: 33000000 }, { name: "Des", saldo: 12000000 },
-];
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-const pendapatanData = [
-  { name: "Jan", pendapatan: 5000000 },  { name: "Feb", pendapatan: 28000000 }, { name: "Mar", pendapatan: 12000000 },
-  { name: "Apr", pendapatan: 3000000 },  { name: "Mei", pendapatan: 35000000 }, { name: "Jun", pendapatan: 18000000 },
-  { name: "Jul", pendapatan: 30000000 }, { name: "Ags", pendapatan: 7000000 },  { name: "Sep", pendapatan: 22000000 },
-  { name: "Okt", pendapatan: 15000000 }, { name: "Nov", pendapatan: 4000000 },  { name: "Des", pendapatan: 29000000 },
-];
+interface Profile {
+  id: string;
+  full_name: string | null;
+  business_name: string | null;
+  email: string;
+  is_active: boolean | null;
+}
 
-const pengeluaranData = [
-  { name: "Jan", pengeluaran: 22000000 }, { name: "Feb", pengeluaran: 10000000 }, { name: "Mar", pengeluaran: 25000000 },
-  { name: "Apr", pengeluaran: 30000000 }, { name: "Mei", pengeluaran: 5000000 },  { name: "Jun", pengeluaran: 12000000 },
-  { name: "Jul", pengeluaran: 8000000 },  { name: "Ags", pengeluaran: 33000000 }, { name: "Sep", pengeluaran: 15000000 },
-  { name: "Okt", pengeluaran: 5000000 },  { name: "Nov", pengeluaran: 28000000 }, { name: "Des", pengeluaran: 19000000 },
-];
+interface FinancialSummary {
+  totalPendapatan: number;
+  totalPengeluaran: number;
+  totalSaldo: number;
+  netProfit: number;
+}
 
-const labaRugiData = [
-  { name: "Jan", untung: 15000000, rugi: 5000000 },  { name: "Feb", untung: 12000000, rugi: 8000000 },
-  { name: "Mar", untung: 22000000, rugi: 3000000 },  { name: "Apr", untung: 8000000, rugi: 15000000 },
-  { name: "Mei", untung: 25000000, rugi: 5000000 },  { name: "Jun", untung: 12000000, rugi: 18000000 },
-  { name: "Jul", untung: 32000000, rugi: 4000000 },  { name: "Ags", untung: 10000000, rugi: 22000000 },
-  { name: "Sep", untung: 28000000, rugi: 6000000 },  { name: "Okt", untung: 15000000, rugi: 12000000 },
-  { name: "Nov", untung: 5000000, rugi: 28000000 },  { name: "Des", untung: 35000000, rugi: 5000000 },
-];
+interface ChartData {
+  saldo:       { name: string; saldo: number }[];
+  pendapatan:  { name: string; pendapatan: number }[];
+  pengeluaran: { name: string; pengeluaran: number }[];
+  labaRugi:    { name: string; untung: number; rugi: number }[];
+}
 
-const formatCurrencyFull = (v: number) => {
-  const isNegative = v < 0;
-  const absV = Math.abs(v);
-  const formatted = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(absV);
-  return isNegative ? `-${formatted}` : formatted;
+interface RecentTransaction {
+  id: string;
+  reference_number: string;
+  transaction_date: string;
+  total_income: number;
+  total_expense: number;
+  net_balance: number;
+  description: string | null;
+}
+
+// ─── Empty chart fallback (12 bulan kosong) ───────────────────────────────────
+
+const MONTHS = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Ags","Sep","Okt","Nov","Des"];
+
+const emptyCharts: ChartData = {
+  saldo:       MONTHS.map((name) => ({ name, saldo: 0 })),
+  pendapatan:  MONTHS.map((name) => ({ name, pendapatan: 0 })),
+  pengeluaran: MONTHS.map((name) => ({ name, pengeluaran: 0 })),
+  labaRugi:    MONTHS.map((name) => ({ name, untung: 0, rugi: 0 })),
 };
 
-/* ════════ CUSTOM TOOLTIP ════════ */
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const formatCurrency = (v: number) =>
+  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(v);
+
+const formatShort = (v: number) => {
+  if (Math.abs(v) >= 1_000_000) return `Rp ${(v / 1_000_000).toFixed(1)}jt`;
+  if (Math.abs(v) >= 1_000)     return `Rp ${(v / 1_000).toFixed(0)}rb`;
+  return `Rp ${v}`;
+};
+
+// ─── Custom Tooltip ───────────────────────────────────────────────────────────
+
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#030037] text-white px-5 py-4 rounded-xl shadow-2xl text-xs font-bold border border-white/10 backdrop-blur-md">
+    <div className="bg-[#030037] text-white px-5 py-4 rounded-xl shadow-2xl text-xs font-bold border border-white/10">
       <p className="text-white/40 mb-2 text-[10px] uppercase tracking-widest">{label}</p>
       {payload.map((p: any, i: number) => (
         <p key={i} style={{ color: p.value < 0 ? "#f43f5e" : (p.color || "#fff") }} className="text-sm font-black">
-          {p.name.toUpperCase()}: {formatCurrencyFull(p.value)}
+          {p.name.toUpperCase()}: {formatCurrency(p.value)}
         </p>
       ))}
     </div>
   );
 };
 
-/* ════════ MAIN COMPONENT ════════ */
-export default function TenantDashboard() {
-  return (
-    <div className="w-full flex flex-col gap-4 py-2 pb-20" style={{ fontFamily: 'var(--font-jakarta), sans-serif' }}>
-      
-      {/* HEADER TANPA WRAPPER CARD */}
-      {/* HEADER TANPA WRAPPER CARD */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-4 py-2">
-        <div className="max-w-xl">
-           <div className="flex items-center gap-2 text-primary font-black uppercase tracking-[0.2em] text-[10px] mb-2">
-              <div className="w-6 h-1 bg-primary rounded-full" />
-              Dashboard Tenant UMKM
-           </div>
-           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#030037] tracking-tighter leading-[1.1]">Selamat Datang Di <span className="text-primary">Sipetto</span></h1>
-           <p className="text-zinc-500 font-medium text-sm mt-3">Laporan grafik performa finansial real-time Anda.</p>
-        </div>
-        <div className="flex items-center gap-4 bg-white/80 backdrop-blur-md px-6 py-4 rounded-2xl border border-zinc-100 shadow-sm self-start sm:self-center">
-           <div className="flex flex-col items-start sm:items-end">
-              <span className="text-[10px] font-black uppercase text-zinc-400 tracking-widest leading-none">Status Sistem</span>
-              <span className="text-emerald-500 font-black text-xs uppercase tracking-widest mt-1.5 flex items-center gap-2">
-                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Terkoneksi
-              </span>
-           </div>
-        </div>
-      </div>
+// ─── Chart Card ───────────────────────────────────────────────────────────────
 
-      {/* 🌟 2x2 LARGE CHARTS 🌟 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full h-full px-4">
-
-        {/* Chart 1: Saldo */}
-        <LargeChartItem 
-          title="Saldo Akumulatif" 
-          value="Rp 24,800,000" 
-          change="+8.2%" 
-          color="#3c39d6" 
-          data={saldoData} 
-          dataKey="saldo" 
-          icon={<Wallet className="w-6 h-6" />}
-        />
-
-        {/* Chart 2: Pendapatan */}
-        <LargeChartItem 
-          title="Pendapatan Bersih" 
-          value="Rp 18,350,000" 
-          change="+15.4%" 
-          color="#10b981" 
-          data={pendapatanData} 
-          dataKey="pendapatan" 
-          icon={<TrendingUp className="w-6 h-6" />}
-        />
-
-        {/* Chart 3: Pengeluaran */}
-        <LargeChartItem 
-          title="Pengeluaran Bersih" 
-          value="Rp 6,420,000" 
-          change="-3.1%" 
-          color="#f43f5e" 
-          data={pengeluaranData} 
-          dataKey="pengeluaran" 
-          icon={<TrendingDown className="w-6 h-6" />}
-          negative
-        />
-
-        {/* Chart 4: Untung vs Rugi */}
-        <LargeChartItem 
-          title="Perbandingan Untung & Rugi" 
-          value="Rp 15,200,000" 
-          change="+22.7%" 
-          color="#10b981" 
-          data={labaRugiData} 
-          dataKey={["untung", "rugi"]} 
-          icon={<DollarSign className="w-6 h-6" />}
-          isProfitLoss
-        />
-
-      </div>
-    </div>
-  );
-}
-
-const LargeChartItem = ({ title, value, change, color, data, dataKey, icon, negative = false, isProfitLoss = false }: any) => {
-  // Handle single or multiple data keys
-  const keys = Array.isArray(dataKey) ? dataKey : [dataKey];
-  const allValues = data.flatMap((d: any) => keys.map(k => d[k]));
-  const maxVal = Math.max(...allValues);
+const ChartCard = ({
+  title, value, color, data, dataKey, icon, negative = false, isProfitLoss = false,
+}: {
+  title: string;
+  value: string;
+  color: string;
+  data: any[];
+  dataKey: string | string[];
+  icon: React.ReactNode;
+  negative?: boolean;
+  isProfitLoss?: boolean;
+}) => {
+  const keys     = Array.isArray(dataKey) ? dataKey : [dataKey];
+  const allValues = data.flatMap((d) => keys.map((k) => d[k] ?? 0));
+  const maxVal    = Math.max(...allValues, 1);
 
   return (
-    <div className="bg-white rounded-2xl border border-zinc-100 p-6 sm:p-10 shadow-sm flex flex-col h-[400px] sm:h-[500px] hover:shadow-xl hover:shadow-primary/5 transition-all duration-500 group relative overflow-hidden">
-      <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-4 mb-8 relative z-10">
-        <div className="flex items-center gap-4 sm:gap-5">
-          <div className="p-3 sm:p-4 bg-zinc-50 text-zinc-400 rounded-2xl group-hover:bg-primary group-hover:text-white transition-all duration-300 shadow-sm shrink-0">
+    <div className="bg-white rounded-2xl border border-zinc-100 p-6 sm:p-8 shadow-sm flex flex-col h-[380px] sm:h-[460px] hover:shadow-xl hover:shadow-primary/5 transition-all duration-500 group relative overflow-hidden">
+      <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-4 mb-6 relative z-10">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-zinc-50 text-zinc-400 rounded-2xl group-hover:bg-primary group-hover:text-white transition-all duration-300 shadow-sm shrink-0">
             {icon}
           </div>
           <div>
-            <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400 block mb-1">{title}</span>
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-[#030037] tracking-tighter leading-none">{value}</h2>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 block mb-1">{title}</span>
+            <h2 className="text-xl sm:text-2xl font-bold text-[#030037] tracking-tighter leading-none">{value}</h2>
           </div>
         </div>
-        <div className={`shrink-0 px-4 py-2 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-widest ${negative ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'} shadow-sm border border-black/0 group-hover:border-current/10 self-end xs:self-center`}>
-          {change}
+        <div className={`shrink-0 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest ${
+          negative ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"
+        } shadow-sm self-end xs:self-center`}>
+          {negative ? "Pengeluaran" : "Pemasukan"}
         </div>
       </div>
-      
+
       <div className="flex-1 min-h-0 w-full relative z-10">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
             <defs>
-              <linearGradient id="colorUntung" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+              <linearGradient id="gUntung" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor="#10b981" stopOpacity={0.4} />
                 <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
               </linearGradient>
-              <linearGradient id="colorRugi" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.4} />
+              <linearGradient id="gRugi" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor="#f43f5e" stopOpacity={0.4} />
                 <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
               </linearGradient>
-              <linearGradient id={`colorGrad-${keys[0]}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={color} stopOpacity={0.4} />
-                <stop offset="95%" stopColor={color} stopOpacity={0.1} />
+              <linearGradient id={`g-${keys[0]}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor={color} stopOpacity={0.4} />
+                <stop offset="95%" stopColor={color} stopOpacity={0.05} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f1f4" vertical={true} />
-            <XAxis 
-              dataKey="name" 
-              tick={{ fontSize: 9, fill: "#a1a1aa", fontWeight: 800 }} 
-              axisLine={{ stroke: '#f1f1f4' }} 
-              tickLine={{ stroke: '#f1f1f4' }} 
-              dy={10}
-            />
-            <YAxis 
-              domain={[0, maxVal]}
-              tick={{ fontSize: 9, fill: "#a1a1aa", fontWeight: 800 }} 
-              axisLine={{ stroke: '#f1f1f4' }} 
-              tickLine={{ stroke: '#f1f1f4' }} 
-              tickFormatter={(v) => `${(v/1000000).toFixed(0)}jt`}
-              width={40}
-            />
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f1f4" />
+            <XAxis dataKey="name" tick={{ fontSize: 9, fill: "#a1a1aa", fontWeight: 800 }} axisLine={{ stroke: "#f1f1f4" }} tickLine={false} dy={8} />
+            <YAxis domain={[0, maxVal]} tick={{ fontSize: 9, fill: "#a1a1aa", fontWeight: 800 }} axisLine={{ stroke: "#f1f1f4" }} tickLine={false} tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}jt`} width={36} />
             <Tooltip content={<CustomTooltip />} />
-            
             {isProfitLoss ? (
               <>
-                <Area 
-                  type="monotone" 
-                  dataKey="untung" 
-                  stroke="#10b981" 
-                  strokeWidth={3} 
-                  fill="url(#colorUntung)" 
-                  animationDuration={1500}
-                  dot={{ r: 3, fill: "#10b981", stroke: "#fff", strokeWidth: 2, opacity: 1 }}
-                  activeDot={{ r: 6, fill: "#10b981", stroke: "#fff", strokeWidth: 3 }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="rugi" 
-                  stroke="#f43f5e" 
-                  strokeWidth={3} 
-                  fill="url(#colorRugi)" 
-                  animationDuration={1500}
-                  dot={{ r: 3, fill: "#f43f5e", stroke: "#fff", strokeWidth: 2, opacity: 1 }}
-                  activeDot={{ r: 6, fill: "#f43f5e", stroke: "#fff", strokeWidth: 3 }}
-                />
+                <Area type="monotone" dataKey="untung" stroke="#10b981" strokeWidth={2.5} fill="url(#gUntung)" />
+                <Area type="monotone" dataKey="rugi"   stroke="#f43f5e" strokeWidth={2.5} fill="url(#gRugi)" />
               </>
             ) : (
-              <Area 
-                type="monotone" 
-                dataKey={keys[0]} 
-                stroke={color} 
-                strokeWidth={3} 
-                fill={`url(#colorGrad-${keys[0]})`} 
-                animationDuration={1500}
-                dot={{ r: 3, fill: color, stroke: "#fff", strokeWidth: 2, opacity: 1 }}
-                activeDot={{ r: 6, fill: color, stroke: "#fff", strokeWidth: 3 }}
-              />
+              <Area type="monotone" dataKey={keys[0]} stroke={color} strokeWidth={2.5} fill={`url(#g-${keys[0]})`} />
             )}
           </AreaChart>
         </ResponsiveContainer>
@@ -241,3 +155,154 @@ const LargeChartItem = ({ title, value, change, color, data, dataKey, icon, nega
     </div>
   );
 };
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function TenantDashboard() {
+  const router = useRouter();
+  const [profile,  setProfile]  = useState<Profile | null>(null);
+  const [summary,  setSummary]  = useState<FinancialSummary | null>(null);
+  const [charts,   setCharts]   = useState<ChartData>(emptyCharts);
+  const [recentTx, setRecentTx] = useState<RecentTransaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch Profile & Financials
+        const res = await fetch("/api/backend/tenant-umkm");
+        if (res.ok) {
+          const json = await res.json();
+          setProfile(json.profile);
+          setSummary(json.financials.summary);
+          setCharts(json.financials.charts);
+
+          // Fetch Recent Transactions
+          const txRes = await fetch(`/api/backend/transaction/group?profile_id=${json.profile.id}&limit=5`);
+          if (txRes.ok) {
+            const txJson = await txRes.json();
+            setRecentTx(txJson.data);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch tenant data:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const displayName = profile?.business_name ?? profile?.full_name ?? "UMKM Anda";
+
+  return (
+    <div className="w-full flex flex-col gap-4 py-2 pb-20 px-4 sm:px-6">
+      {isLoading && <FullPageLoader />}
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 py-2">
+        <div className="max-w-xl">
+          <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-[0.2em] text-[10px] mb-2">
+            <div className="w-6 h-1 bg-primary rounded-full" />
+            Dashboard Tenant UMKM
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-bold text-[#030037] tracking-tighter leading-[1.1]">
+            Selamat Datang, <span className="text-primary">{displayName}</span>
+          </h1>
+          <p className="text-zinc-500 font-medium text-sm mt-3">
+            Laporan grafik performa finansial real-time Anda.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-4 bg-white/80 backdrop-blur-md px-6 py-4 rounded-xl border border-zinc-100 shadow-sm self-start sm:self-center">
+          <div className="flex flex-col items-start sm:items-end gap-1">
+            <span className="text-[10px] font-bold uppercase text-zinc-400 tracking-widest leading-none">Saldo Bersih</span>
+            <span className={`font-bold text-sm ${(summary?.totalSaldo ?? 0) >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+              {formatShort(summary?.totalSaldo ?? 0)}
+            </span>
+          </div>
+          <button onClick={() => router.push("/backend/tenant/transactions")} className="ml-2 p-3 bg-primary text-white rounded-xl shadow-lg shadow-primary/30 hover:scale-105 active:scale-95 transition-all group">
+             <Receipt className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+          </button>
+        </div>
+      </div>
+
+      {/* Charts 2x2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ChartCard title="Saldo Akumulatif" value={formatShort(summary?.totalSaldo ?? 0)} color="#3c39d6" data={charts.saldo} dataKey="saldo" icon={<Wallet className="w-6 h-6" />} />
+        <ChartCard title="Pendapatan Bersih" value={formatShort(summary?.totalPendapatan ?? 0)} color="#10b981" data={charts.pendapatan} dataKey="pendapatan" icon={<TrendingUp className="w-6 h-6" />} />
+        <ChartCard title="Pengeluaran Bersih" value={formatShort(summary?.totalPengeluaran ?? 0)} color="#f43f5e" data={charts.pengeluaran} dataKey="pengeluaran" icon={<TrendingDown className="w-6 h-6" />} negative />
+        <ChartCard title="Laba & Rugi" value={formatShort(summary?.netProfit ?? 0)} color="#10b981" data={charts.labaRugi} dataKey={["untung", "rugi"]} icon={<DollarSign className="w-6 h-6" />} isProfitLoss />
+      </div>
+
+      {/* Recent Transactions Section */}
+      <div className="mt-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <h3 className="text-xl font-bold text-[#030037] tracking-tight">Transaksi Terakhir</h3>
+            <p className="text-xs text-zinc-400 font-medium">5 aktivitas finansial terbaru Anda.</p>
+          </div>
+          <button onClick={() => router.push("/backend/tenant/transactions")} className="text-xs font-bold text-primary flex items-center gap-1.5 hover:gap-2.5 transition-all">
+            LIHAT SEMUA <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden shadow-sm">
+           <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-zinc-50/50 border-b border-zinc-50">
+                    <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Referensi</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Tanggal</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Pemasukan</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Pengeluaran</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Net</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-50">
+                   {isLoading ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-20 text-center">
+                        <SectionLoader text="Memuat Transaksi Terakhir..." />
+                      </td>
+                    </tr>
+                   ) : recentTx.length > 0 ? (
+                    recentTx.map((tx) => (
+                      <tr key={tx.id} className="hover:bg-zinc-50/50 transition-colors group cursor-pointer">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-zinc-50 flex items-center justify-center text-zinc-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                              <Receipt className="w-4 h-4" />
+                            </div>
+                            <span className="text-xs font-bold text-zinc-900 uppercase">#{tx.reference_number || tx.id.slice(0, 6)}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-xs font-medium text-zinc-500 italic">
+                            {new Date(tx.transaction_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-xs font-black text-emerald-600">{formatCurrency(tx.total_income)}</td>
+                        <td className="px-6 py-4 text-xs font-black text-rose-600">{formatCurrency(tx.total_expense)}</td>
+                        <td className="px-6 py-4">
+                           <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${tx.net_balance >= 0 ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}>
+                              {formatCurrency(tx.net_balance)}
+                           </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-zinc-400 text-xs font-medium italic">
+                        Belum ada transaksi tercatat.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+           </div>
+        </div>
+      </div>
+    </div>
+  );
+}

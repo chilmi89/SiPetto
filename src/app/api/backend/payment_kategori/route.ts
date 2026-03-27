@@ -13,8 +13,13 @@ export async function GET(req: Request) {
         const profile_id = searchParams.get("profile_id") ?? undefined;
         const is_active  = searchParams.get("is_active");
 
-        const where = {
-            ...(profile_id            && { profile_id }),
+        const where: any = {
+            ...(profile_id ? {
+                OR: [
+                    { profile_id: profile_id },
+                    { profile_id: null }
+                ]
+            } : {}),
             ...(search                && { name: { contains: search, mode: "insensitive" as const } }),
             ...(is_active !== null    && is_active !== undefined && { is_active: is_active === "true" }),
         };

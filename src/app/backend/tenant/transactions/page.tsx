@@ -149,17 +149,21 @@ const RecorderContent = () => {
         // 2. Load Master Data & Edit Mode in Parallel
         const [catData, payData, txData] = await Promise.all([
             fetch(`/api/backend/kategori?profile_id=${currentProfileId}&limit=100`).then(r => r.json()),
-            fetch(`/api/backend/payment_kategori?limit=100`).then(r => r.json()),
+            fetch(`/api/backend/payment_kategori?profile_id=${currentProfileId}&limit=100`).then(r => r.json()),
             editId ? fetch(`/api/backend/transaction/group?id=${editId}`).then(r => r.json()) : Promise.resolve(null)
         ]);
 
-        if (catData.data.length === 0) {
-            // Seed if empty, but keep going
+        if (catData.data?.length === 0 || payData.data?.length === 0) {
+            // Seed if either is empty
             initDefaults(currentProfileId);
-        } else {
+        }
+        
+        if (catData.data?.length > 0) {
             setCategories(catData.data);
         }
-        setPaymentMethods(payData.data);
+        if (payData.data?.length > 0) {
+            setPaymentMethods(payData.data);
+        }
 
         // 3. If Edit Mode, Fetch Transaction Data
         if (txData && txData.data?.[0]) {
@@ -441,7 +445,7 @@ const RecorderContent = () => {
                           <label className="lg:hidden block text-[8px] text-zinc-400 font-bold uppercase mb-1">Kategori</label>
                           <select
                             className="w-full bg-transparent border-none p-0 text-[10px] lg:text-[11px] font-black text-zinc-700 appearance-none outline-none cursor-pointer focus:ring-0"
-                            value={item.category_id}
+                            value={item.category_id || ""}
                             onChange={(e) => updateItem(item.id, "category_id", e.target.value)}
                           >
                             <option value="">Pilih Kategori</option>
@@ -457,7 +461,7 @@ const RecorderContent = () => {
                              <Banknote className="w-3.5 h-3.5 text-zinc-300 transition-colors group-focus-within/select:text-primary shrink-0" />
                              <select
                                className="w-full bg-transparent border-none p-0 text-[10px] lg:text-[11px] font-black text-zinc-700 appearance-none outline-none cursor-pointer focus:ring-0 pr-4 lg:pr-6"
-                               value={item.payment_method_id}
+                               value={item.payment_method_id || ""}
                                onChange={(e) => updateItem(item.id, "payment_method_id", e.target.value)}
                              >
                                <option value="">Metode</option>

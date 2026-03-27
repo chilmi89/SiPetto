@@ -21,7 +21,7 @@ const jakartaSans = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: "Sippeto Admin",
-  description: "Modern Pet Management Dashboard",
+  description: "Modern bisnis Management Dashboard",
 };
 
 export default function RootLayout({

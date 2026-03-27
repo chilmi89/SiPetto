@@ -1,14 +1,20 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
     if (!supabaseUrl || !supabaseKey) {
-        console.error("Kredensial Supabase URL atau KEY kosong. Silakan periksa .env Anda.");
-        return NextResponse.json({ error: 'Konfigurasi Cloud Storage belum lengkap' }, { status: 500 });
+        console.error("EROR KONFIGURASI SUPABASE:", { 
+            hasUrl: !!supabaseUrl, 
+            hasKey: !!supabaseKey,
+            env: process.env.NODE_ENV
+        });
+        return NextResponse.json({ error: 'Konfigurasi Cloud Storage belum lengkap (URL/KEY missing)' }, { status: 500 });
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);

@@ -154,7 +154,7 @@ export default function AdminDashboardPage() {
              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest leading-none">Global Control Center</span>
           </div>
           <h1 className="text-3xl font-bold text-[#030037] tracking-tighter leading-none">
-            System Status: <span className="text-primary font-medium">Operational</span>
+            Selamat datang, <span className="text-primary font-medium">{displayName}</span>
           </h1>
           <p className="text-sm font-medium text-zinc-500 max-w-xl">
              Monitoring traffic request, kesehatan node, dan integritas data SiPetto secara real-time.

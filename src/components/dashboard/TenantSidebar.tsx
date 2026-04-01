@@ -15,17 +15,35 @@ import {
   HelpCircle,
   X,
   History,
-  Receipt
+  Receipt,
+  ChevronDown
 } from "lucide-react";
 
-const tenantNavItems = [
+type NavItem = {
+  icon: any;
+  label: string;
+  href: string;
+  subItems?: { label: string; href: string }[];
+};
+
+const tenantNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/backend/tenant" },
   { icon: Receipt, label: "Catatan Transaksi", href: "/backend/tenant/transactions" },
   { icon: History, label: "Riwayat & Kelola", href: "/backend/tenant/transactions/history" },
+  { 
+    icon: BarChart3, 
+    label: "Statistik Penjualan", 
+    href: "/backend/tenant/reports",
+    subItems: [
+      { label: "Laporan Harian", href: "/backend/tenant/reports/daily" },
+      { label: "Laporan Mingguan", href: "/backend/tenant/reports/weekly" },
+      { label: "Laporan Bulanan", href: "/backend/tenant/reports/monthly" },
+      { label: "Laporan Tahunan", href: "/backend/tenant/reports/yearly" },
+    ]
+  },
   { icon: UserCircle, label: "Profil UMKM", href: "/backend/tenant/profile" },
   { icon: Package, label: "Produk Kami", href: "/backend/tenant/products" },
   { icon: ShoppingCart, label: "Pesanan Masuk", href: "/backend/tenant/orders" },
-  { icon: BarChart3, label: "Statistik Penjualan", href: "/backend/tenant/reports" },
   { icon: Settings, label: "Pengaturan Toko", href: "/backend/tenant/settings" },
 ];
 
@@ -33,10 +51,24 @@ export const TenantSidebar = () => {
   const pathname = usePathname();
   const { isOpen, closeSidebar } = useSidebar();
   const [mounted, setMounted] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    // Auto-tutup sub-menu jika berpindah ke halaman menu utama (tidak terkait)
+    const activeItem = tenantNavItems.find(item => item.subItems && pathname.startsWith(item.href));
+    if (activeItem) {
+      setExpandedMenus([activeItem.label]);
+    } else {
+      setExpandedMenus([]);
+    }
+  }, [pathname]);
+
+  const toggleMenu = (label: string) => {
+    // Menggunakan gaya Accordion: Jika satu dibuka, yang lain ditutup otomatis.
+    // Jika diklik yang sama, akan tertutup.
+    setExpandedMenus(prev => prev.includes(label) ? [] : [label]);
+  };
 
   if (!mounted) return null;
 
@@ -76,25 +108,68 @@ export const TenantSidebar = () => {
 
         <nav className="flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {tenantNavItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || (!!item.subItems && pathname.startsWith(item.href) && pathname !== item.href);
+            const hasSubItems = !!item.subItems;
+            const isExpanded = expandedMenus.includes(item.label);
             
             return (
               <div key={item.label} className="relative">
-                <Link
-                  href={item.href}
-                  onClick={() => { if (window.innerWidth < 1024) closeSidebar(); }}
-                  className={`flex items-center gap-3 px-4 py-4 rounded-2xl transition-all group ${
-                    isActive ? "bg-white/5 text-white shadow-sm border border-white/5" : "text-white/40 hover:bg-white/5 hover:text-white"
-                  }`}
-                >
-                  <item.icon
-                    className={`w-5 h-5 transition-colors ${
-                      isActive ? "text-primary-light" : "text-white/20 group-hover:text-white"
+                {hasSubItems ? (
+                  <button
+                    onClick={() => toggleMenu(item.label)}
+                    className={`w-full flex items-center justify-between px-4 py-4 rounded-2xl transition-all group ${
+                      isActive ? "bg-white/5 text-white shadow-sm border border-white/5" : "text-white/40 hover:bg-white/5 hover:text-white"
                     }`}
-                  />
-                  <span className={`text-sm tracking-tight ${isActive ? 'font-black' : 'font-bold'}`}>{item.label}</span>
-                  {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />}
-                </Link>
+                  >
+                    <div className="flex items-center gap-3">
+                      <item.icon
+                        className={`w-5 h-5 transition-colors ${
+                          isActive ? "text-primary-light" : "text-white/20 group-hover:text-white"
+                        }`}
+                      />
+                      <span className={`text-sm tracking-tight ${isActive ? 'font-black' : 'font-bold'}`}>{item.label}</span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''} ${isActive ? "text-white" : "text-white/40 group-hover:text-white"}`} />
+                  </button>
+                ) : (
+                  <Link
+                    href={item.href}
+                    onClick={() => { if (window.innerWidth < 1024) closeSidebar(); }}
+                    className={`flex items-center gap-3 px-4 py-4 rounded-2xl transition-all group ${
+                      isActive ? "bg-white/5 text-white shadow-sm border border-white/5" : "text-white/40 hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    <item.icon
+                      className={`w-5 h-5 transition-colors ${
+                        isActive ? "text-primary-light" : "text-white/20 group-hover:text-white"
+                      }`}
+                    />
+                    <span className={`text-sm tracking-tight ${isActive ? 'font-black' : 'font-bold'}`}>{item.label}</span>
+                    {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />}
+                  </Link>
+                )}
+
+                {hasSubItems && (
+                  <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-64 opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+                    <div className="flex flex-col gap-1 pl-12 pr-4 py-2 border-l border-white/10 ml-6">
+                      {item.subItems?.map((subItem) => {
+                        const isSubActive = pathname === subItem.href;
+                        return (
+                          <Link
+                            key={subItem.label}
+                            href={subItem.href}
+                            onClick={() => { if (window.innerWidth < 1024) closeSidebar(); }}
+                            className={`block py-2 text-sm transition-colors ${
+                              isSubActive ? "text-white font-bold" : "text-white/40 hover:text-white/80 font-medium"
+                            }`}
+                          >
+                            {subItem.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

@@ -32,7 +32,7 @@ export async function POST(req: Request) {
         const urlParts = oldUrl.split('/');
         const oldFileName = urlParts[urlParts.length - 1];
         if (oldFileName) {
-          await supabase.storage.from('banner_umkm').remove([oldFileName]);
+          await supabase.storage.from('sippeto_upload').remove([oldFileName]);
         }
       } catch (err) {
         console.error("Gagal menghapus file banner lama:", err);
@@ -46,9 +46,9 @@ export async function POST(req: Request) {
     const originalName = file.name.replace(/\s+/g, '-').toLowerCase();
     const filename = `banner-${uniqueSuffix}-${originalName}`;
     
-    // Upload eksklusif ke bucket banner_umkm
+    // Upload eksklusif ke bucket sippeto_upload
     const { data, error } = await supabase.storage
-      .from('banner_umkm')
+      .from('sippeto_upload')
       .upload(filename, buffer, {
         contentType: file.type,
         upsert: false
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
     }
 
     const { data: publicUrlData } = supabase.storage
-      .from('banner_umkm')
+      .from('sippeto_upload')
       .getPublicUrl(filename);
 
     return NextResponse.json({ url: publicUrlData.publicUrl }, { status: 200 });

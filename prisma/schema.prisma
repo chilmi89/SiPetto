@@ -9,10 +9,9 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model categories {
-  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                String              @id @default(uuid()) @db.Uuid
   profile_id        String?             @db.Uuid
   name              String              @db.VarChar(100)
   type              String              @db.VarChar(20)
@@ -25,7 +24,7 @@ model categories {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model payment_methods {
-  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                String              @id @default(uuid()) @db.Uuid
   profile_id        String?             @db.Uuid
   name              String              @db.VarChar(50)
   is_active         Boolean?            @default(true)
@@ -36,8 +35,9 @@ model payment_methods {
   @@unique([profile_id, name])
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model permissions {
-  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id               String             @id @default(uuid()) @db.Uuid
   name             String             @unique @db.VarChar(100)
   created_at       DateTime?          @default(now()) @db.Timestamptz(6)
   role_permissions role_permissions[]
@@ -45,7 +45,7 @@ model permissions {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model profiles {
-  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                 String               @id @default(uuid()) @db.Uuid
   role_id            String?              @db.Uuid
   email              String               @unique @db.VarChar(255)
   full_name          String?              @db.VarChar(255)
@@ -53,19 +53,20 @@ model profiles {
   phone_number       String?              @db.VarChar(20)
   address            String?
   avatar_url         String?
+  banner_url         String?
   bio                String?
+  password           String?              @db.VarChar(255)
   is_active          Boolean?             @default(true)
   metadata           Json?                @default("{}")
-  updated_at         DateTime?            @default(now()) @db.Timestamptz(6)
   created_at         DateTime?            @default(now()) @db.Timestamptz(6)
-  password           String?              @db.VarChar(255)
-  banner_url         String?
+  updated_at         DateTime?            @default(now()) @db.Timestamptz(6)
   categories         categories[]
   payment_methods    payment_methods[]
   roles              roles?               @relation(fields: [role_id], references: [id], onUpdate: NoAction)
   transaction_groups transaction_groups[]
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model role_permissions {
   role_id       String      @db.Uuid
   permission_id String      @db.Uuid
@@ -75,8 +76,9 @@ model role_permissions {
   @@id([role_id, permission_id])
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model roles {
-  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id               String             @id @default(uuid()) @db.Uuid
   name             String             @unique @db.VarChar(50)
   created_at       DateTime?          @default(now()) @db.Timestamptz(6)
   profiles         profiles[]
@@ -85,7 +87,7 @@ model roles {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model transaction_attachments {
-  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                 String              @id @default(uuid()) @db.Uuid
   group_id           String?             @db.Uuid
   file_url           String
   created_at         DateTime?           @default(now()) @db.Timestamptz(6)
@@ -94,7 +96,7 @@ model transaction_attachments {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model transaction_groups {
-  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                      String                    @id @default(uuid()) @db.Uuid
   profile_id              String?                   @db.Uuid
   reference_number        String?                   @unique @db.VarChar(100)
   transaction_date        DateTime?                 @default(dbgenerated("CURRENT_DATE")) @db.Date
@@ -106,16 +108,11 @@ model transaction_groups {
   transaction_attachments transaction_attachments[]
   profiles                profiles?                 @relation(fields: [profile_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   transaction_items       transaction_items[]
-
-  @@index([profile_id])
-  @@index([transaction_date])
-  @@index([profile_id, transaction_date])
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model transaction_items {
-  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                 String              @id @default(uuid()) @db.Uuid
   group_id           String?             @db.Uuid
   category_id        String?             @db.Uuid
   payment_method_id  String?             @db.Uuid
@@ -126,7 +123,4 @@ model transaction_items {
   categories         categories?         @relation(fields: [category_id], references: [id], onUpdate: NoAction)
   transaction_groups transaction_groups? @relation(fields: [group_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   payment_methods    payment_methods?    @relation(fields: [payment_method_id], references: [id], onUpdate: NoAction)
-
-  @@index([group_id])
-  @@index([category_id])
 }

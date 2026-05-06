@@ -42,9 +42,6 @@ const tenantNavItems: NavItem[] = [
     ]
   },
   { icon: UserCircle, label: "Profil UMKM", href: "/backend/tenant/profile" },
-  { icon: Package, label: "Produk Kami", href: "/backend/tenant/products" },
-  { icon: ShoppingCart, label: "Pesanan Masuk", href: "/backend/tenant/orders" },
-  { icon: Settings, label: "Pengaturan Toko", href: "/backend/tenant/settings" },
 ];
 
 export const TenantSidebar = () => {

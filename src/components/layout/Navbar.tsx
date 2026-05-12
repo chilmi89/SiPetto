@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Sparkles, Moon } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 export const Navbar = () => {
   return (
@@ -15,12 +15,7 @@ export const Navbar = () => {
       </div>
       <div className="flex items-center gap-6 text-sm font-bold uppercase tracking-widest leading-none">
         <Link href="/login" className="hover:text-white transition-all hover:scale-105 active:scale-95">Login</Link>
-        <button className="flex items-center gap-2 bg-white/10 p-1.5 rounded-full px-4 border border-white/20 backdrop-blur-md hover:bg-white/20 transition-all">
-          <Moon className="w-4 h-4" />
-          <div className="w-8 h-4 bg-white/20 rounded-full relative">
-            <div className="absolute right-1 top-1 w-2 h-2 bg-white rounded-full shadow-lg" />
-          </div>
-        </button>
+
       </div>
     </nav>
   );

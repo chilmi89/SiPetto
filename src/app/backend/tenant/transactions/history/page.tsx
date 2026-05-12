@@ -165,7 +165,7 @@ const TransactionHistoryPage = () => {
         </div>
         <div className="bg-[#030037] p-5 rounded-2xl shadow-lg flex flex-col gap-1">
            <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Saldo Filter</span>
-           <h3 className="text-xl font-black text-primary tracking-tight">
+           <h3 className={`text-xl font-black tracking-tight ${transactions.reduce((acc, tx) => acc + Number(tx.net_balance), 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
              {formatCurrency(transactions.reduce((acc, tx) => acc + Number(tx.net_balance), 0))}
            </h3>
         </div>

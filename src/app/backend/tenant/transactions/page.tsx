@@ -518,7 +518,7 @@ const RecorderContent = () => {
 
                 <div className="sm:col-span-2 lg:col-span-1 p-3 lg:p-4 bg-[#030037] rounded-xl lg:rounded-2xl flex flex-col items-center shadow-lg group">
                    <span className="text-[9px] font-bold text-white/50 uppercase tracking-widest mb-1">Saldo Bersih</span>
-                   <h4 className={`text-xl lg:text-2xl font-black tracking-tighter transition-all group-hover:scale-105 ${balance >= 0 ? 'text-primary' : 'text-rose-400'}`}>
+                   <h4 className={`text-xl lg:text-2xl font-black tracking-tighter transition-all group-hover:scale-105 ${balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                       {formatIDR(balance)}
                    </h4>
                 </div>

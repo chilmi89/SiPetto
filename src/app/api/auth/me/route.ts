@@ -19,13 +19,25 @@ export async function GET() {
       role_name: string | null;
     };
 
-    // Ambil full detail dari database
+    // Ambil full detail dari database dengan permission
     const profile = await prisma.profiles.findUnique({
       where: { id: decoded.id },
-      include: { roles: true }
+      include: {
+        roles: {
+          include: {
+            role_permissions: {
+              include: {
+                permissions: true
+              }
+            }
+          }
+        }
+      }
     });
 
     if (!profile) return NextResponse.json({ error: "Profil tidak ditemukan." }, { status: 404 });
+
+    const permissions = profile.roles?.role_permissions.map(rp => rp.permissions.name) || [];
 
     // Hapus data sensitif jika ada
     const { ...userProfile } = profile;
@@ -33,6 +45,7 @@ export async function GET() {
     return NextResponse.json({
         ...userProfile,
         role_name: profile.roles?.name || decoded.role_name,
+        permissions
     });
   } catch (err) {
     console.error("AUTH ME ERROR:", err);

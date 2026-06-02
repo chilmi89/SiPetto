@@ -9,6 +9,7 @@ export async function GET(req: Request) {
 
         const id         = searchParams.get("id") ?? undefined;
         const profile_id = searchParams.get("profile_id") ?? undefined;
+        const branch_id  = searchParams.get("branch_id") ?? undefined;
         const search     = searchParams.get("search") ?? undefined;
         const date_start = searchParams.get("date_start") ?? undefined;
         const date_end   = searchParams.get("date_end") ?? undefined;
@@ -34,6 +35,7 @@ export async function GET(req: Request) {
 
         const where = {
             ...(profile_id && { profile_id }),
+            ...(branch_id  && { branch_id }),
             ...(search     && { reference_number: { contains: search, mode: "insensitive" as const } }),
             ...((date_start || date_end) && {
                 transaction_date: {
@@ -78,7 +80,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { profile_id, reference_number, transaction_date, description, items } = body;
+        const { profile_id, branch_id, reference_number, transaction_date, description, items } = body;
 
         if (!profile_id) {
             return NextResponse.json({ error: "Profile ID wajib disertakan" }, { status: 400 });
@@ -110,6 +112,7 @@ export async function POST(req: Request) {
         const newGroup = await prisma.transaction_groups.create({
             data: {
                 profile_id,
+                branch_id: branch_id ?? null,
                 reference_number,
                 transaction_date: transaction_date ? new Date(transaction_date) : undefined,
                 description,

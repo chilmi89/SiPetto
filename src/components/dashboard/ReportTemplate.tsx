@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import {
-  TrendingUp, TrendingDown, Wallet, CalendarRange, ArrowLeft, FileSpreadsheet, FileText
+  TrendingUp, TrendingDown, Wallet, CalendarRange, ArrowLeft, FileSpreadsheet, FileText, ChevronDown
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -59,41 +59,89 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function ReportTemplate({ type, title }: ReportTemplateProps) {
   const router = useRouter();
+  const [profile, setProfile] = useState<any>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
   const [data, setData] = useState<ReportData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFiltering, setIsFiltering] = useState(false);
 
+  // Branch Filter States
+  const [branches, setBranches] = useState<any[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>("all");
+  const [userBranchId, setUserBranchId] = useState<string | null>(null);
+
+  // 1. Initial Load: Profile & Branches
   useEffect(() => {
-    const fetchReport = async () => {
+    const fetchInitialData = async () => {
       try {
-        // Fetch get profile id
+        setIsLoading(true);
         const profileRes = await fetch("/api/backend/tenant-umkm");
         if (!profileRes.ok) throw new Error("Gagal mengambil profil tenant");
         
         const profileJson = await profileRes.json();
-        const id = profileJson.profile.id;
+        setProfile(profileJson.profile);
+        const id = profileJson.profile.tenant_owner_id || profileJson.profile.id;
         setProfileId(id);
+        
+        const currentBranchId = profileJson.profile.branch_id;
+        setUserBranchId(currentBranchId);
 
-        // Fetch reports API
-        const reportRes = await fetch(`/api/backend/reports/sales?profile_id=${id}&type=${type}`);
+        // Fetch Branches
+        const branchesRes = await fetch(`/api/backend/branches?tenant_id=${id}`);
+        if (branchesRes.ok) {
+            const branchesJson = await branchesRes.json();
+            setBranches(branchesJson.data || []);
+        }
+
+        if (currentBranchId) {
+            setSelectedBranchId(currentBranchId);
+        } else {
+            setSelectedBranchId("all");
+        }
+      } catch (err) {
+        console.error("Fetch profile error:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchInitialData();
+  }, []);
+
+  // 2. Load Report Data when selectedBranchId, profileId, or type changes
+  useEffect(() => {
+    const fetchReportData = async () => {
+      if (!profileId) return;
+      setIsFiltering(true);
+      try {
+        const reportRes = await fetch(
+          `/api/backend/reports/sales?profile_id=${profileId}&type=${type}` +
+          (selectedBranchId !== "all" ? `&branch_id=${selectedBranchId}` : "")
+        );
         if (reportRes.ok) {
            const reportJson = await reportRes.json();
            setData(reportJson.data || []);
            setSummary(reportJson.summary || { total_income: 0, total_expense: 0, net_balance: 0 });
         }
       } catch (err) {
-        console.error("Fetch report error:", err);
+         console.error("Fetch report data error:", err);
       } finally {
-        setIsLoading(false);
+        setTimeout(() => {
+          setIsFiltering(false);
+        }, 200);
       }
     };
 
-    fetchReport();
-  }, [type]);
+    fetchReportData();
+  }, [profileId, selectedBranchId, type]);
 
   // ─── Export Handlers ──────────────────────────────────────────────────────────
   const handleExportExcel = () => {
+    const branchName = selectedBranchId === "all" 
+      ? "Semua Cabang" 
+      : (branches.find(b => b.id === selectedBranchId)?.name || "Cabang");
+
     const sheetData = data.map(row => ({
       Periode: row.period,
       'Total Pemasukan': row.total_income,
@@ -111,16 +159,23 @@ export default function ReportTemplate({ type, title }: ReportTemplateProps) {
     const worksheet = XLSX.utils.json_to_sheet(sheetData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Penjualan");
-    XLSX.writeFile(workbook, `Laporan_${type}_${new Date().toISOString().split("T")[0]}.xlsx`);
+    
+    const cleanBranchName = branchName.replace(/\s+/g, '_');
+    XLSX.writeFile(workbook, `Laporan_${type}_${cleanBranchName}_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
   const handleExportPDF = () => {
+    const branchName = selectedBranchId === "all" 
+      ? "Semua Cabang" 
+      : (branches.find(b => b.id === selectedBranchId)?.name || "Cabang");
+
     const doc = new jsPDF();
     doc.setFontSize(18);
     doc.text(title, 14, 22);
     doc.setFontSize(11);
     doc.text(`Tipe Laporan: ${type.toUpperCase()}`, 14, 30);
-    doc.text(`Dicetak pada: ${new Date().toLocaleDateString('id-ID')}`, 14, 36);
+    doc.text(`Cabang: ${branchName}`, 14, 36);
+    doc.text(`Dicetak pada: ${new Date().toLocaleDateString('id-ID')}`, 14, 42);
 
     const tableColumn = ["Periode", "Total Pemasukan", "Total Pengeluaran", "Saldo Bersih"];
     const tableRows = data.map(row => [
@@ -140,13 +195,14 @@ export default function ReportTemplate({ type, title }: ReportTemplateProps) {
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
-      startY: 42,
+      startY: 48,
       theme: 'grid',
       styles: { fontSize: 10 },
       headStyles: { fillColor: [3, 0, 55] },
     });
     
-    doc.save(`Laporan_${type}_${new Date().toISOString().split("T")[0]}.pdf`);
+    const cleanBranchName = branchName.replace(/\s+/g, '_');
+    doc.save(`Laporan_${type}_${cleanBranchName}_${new Date().toISOString().split("T")[0]}.pdf`);
   };
 
   const maxVal = data.reduce((max, d) => Math.max(max, d.total_income, d.total_expense), 1);
@@ -158,11 +214,13 @@ export default function ReportTemplate({ type, title }: ReportTemplateProps) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 py-2">
         <div className="max-w-xl">
-          <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-[0.2em] text-[10px] mb-2 cursor-pointer" onClick={() => router.push("/backend/tenant")}>
-            <div className="w-6 h-1 bg-primary rounded-full" />
-            <ArrowLeft className="w-3 h-3 inline-block mr-1" />
+          <button 
+            onClick={() => router.push("/backend/tenant")}
+            className="flex items-center gap-2 text-zinc-400 hover:text-primary font-bold uppercase tracking-[0.2em] text-[10px] mb-3 transition-colors group cursor-pointer border-0 bg-transparent p-0 outline-none"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
             Kembali ke Dashboard
-          </div>
+          </button>
           <h1 className="text-3xl sm:text-4xl font-bold text-[#030037] tracking-tighter leading-[1.1]">
             {title}
           </h1>
@@ -171,29 +229,51 @@ export default function ReportTemplate({ type, title }: ReportTemplateProps) {
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-white/80 backdrop-blur-md px-6 py-4 rounded-xl border border-zinc-100 shadow-sm self-start sm:self-center">
-            <div className="flex items-center gap-4">
-               <div className="p-3 bg-zinc-50 text-zinc-400 rounded-2xl">
-                  <CalendarRange className="w-6 h-6" />
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 bg-white/80 backdrop-blur-md px-5 py-3.5 rounded-2xl border border-zinc-100 shadow-sm self-start sm:self-center">
+            {/* Format Info */}
+            <div className="flex items-center gap-3">
+               <div className="p-2.5 bg-zinc-50 text-zinc-400 rounded-xl">
+                  <CalendarRange className="w-5 h-5" />
                </div>
                <div>
-                  <span className="text-[10px] font-bold uppercase text-zinc-400 tracking-widest leading-none">Format</span>
-                  <h2 className="text-lg font-bold text-[#030037] tracking-tighter leading-none capitalize">{type}</h2>
+                  <span className="text-[9px] font-bold uppercase text-zinc-400 tracking-widest leading-none block mb-0.5">Format</span>
+                  <h2 className="text-sm font-black text-[#030037] leading-none capitalize">{type}</h2>
                </div>
             </div>
             
-            <div className="w-full sm:w-px h-px sm:h-10 bg-zinc-100 sm:mx-2"></div>
+            <div className="hidden sm:block w-px h-8 bg-zinc-200/80 sm:mx-1"></div>
+
+            {/* Dropdown Filter Cabang */}
+            <div className="relative group shrink-0 w-full sm:w-auto">
+              <select
+                disabled={!!userBranchId}
+                className="w-full sm:w-auto min-w-[170px] pl-4 pr-10 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-950 appearance-none cursor-pointer focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all duration-200 disabled:bg-zinc-100 disabled:text-zinc-500"
+                value={selectedBranchId}
+                onChange={(e) => setSelectedBranchId(e.target.value)}
+              >
+                <option value="all">Semua Cabang (Pusat)</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none group-focus-within:text-primary transition-colors" />
+            </div>
+
+            <div className="hidden sm:block w-px h-8 bg-zinc-200/80 sm:mx-1"></div>
             
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-               <span className="text-[10px] font-bold uppercase text-zinc-400 tracking-widest leading-none mb-2 sm:mb-0 sm:mr-2">Unduh Laporan:</span>
-               <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <button onClick={handleExportExcel} className="flex-1 sm:flex-none flex items-center justify-center gap-2 p-2.5 px-4 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-xl transition-all group relative" title="Unduh Laporan Excel">
-                     <FileSpreadsheet className="w-4 h-4 group-hover:-translate-y-0.5 transition-transform" />
-                     <span className="text-xs font-bold">Excel</span>
+            {/* Export Buttons */}
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+               <span className="text-[9px] font-bold uppercase text-zinc-400 tracking-widest leading-none shrink-0">Unduh:</span>
+               <div className="flex items-center gap-2">
+                  <button onClick={handleExportExcel} className="flex items-center gap-1.5 p-2.5 px-3.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-xl transition-all font-bold text-xs shadow-sm hover:shadow-md hover:shadow-emerald-500/10 active:scale-95 cursor-pointer" title="Unduh Laporan Excel">
+                     <FileSpreadsheet className="w-3.5 h-3.5" />
+                     <span>Excel</span>
                   </button>
-                  <button onClick={handleExportPDF} className="flex-1 sm:flex-none flex items-center justify-center gap-2 p-2.5 px-4 bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white rounded-xl transition-all group relative" title="Unduh Laporan PDF">
-                     <FileText className="w-4 h-4 group-hover:-translate-y-0.5 transition-transform" />
-                     <span className="text-xs font-bold">PDF</span>
+                  <button onClick={handleExportPDF} className="flex items-center gap-1.5 p-2.5 px-3.5 bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white rounded-xl transition-all font-bold text-xs shadow-sm hover:shadow-md hover:shadow-rose-500/10 active:scale-95 cursor-pointer" title="Unduh Laporan PDF">
+                     <FileText className="w-3.5 h-3.5" />
+                     <span>PDF</span>
                   </button>
                </div>
             </div>
@@ -201,7 +281,9 @@ export default function ReportTemplate({ type, title }: ReportTemplateProps) {
       </div>
 
       {/* Summary Widgets */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 transition-all duration-300 ease-in-out ${
+        isFiltering ? "opacity-40 blur-[1px] scale-[0.995]" : "opacity-100 blur-0 scale-100"
+      }`}>
          {/* Total Income */}
          <div className="bg-white rounded-2xl border border-zinc-100 p-6 flex flex-col justify-between shadow-sm relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
@@ -254,7 +336,9 @@ export default function ReportTemplate({ type, title }: ReportTemplateProps) {
       </div>
 
       {/* Main Chart */}
-      <div className="bg-white rounded-2xl border border-zinc-100 p-6 sm:p-8 shadow-sm flex flex-col h-[400px] mt-2">
+      <div className={`bg-white rounded-2xl border border-zinc-100 p-6 sm:p-8 shadow-sm flex flex-col h-[400px] mt-2 transition-all duration-300 ease-in-out ${
+        isFiltering ? "opacity-40 blur-[1px] scale-[0.995]" : "opacity-100 blur-0 scale-100"
+      }`}>
          <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-4 mb-4 relative z-10">
             <div>
                <h3 className="text-xl font-bold text-[#030037] tracking-tight">Kinerja Arus Kas</h3>
@@ -265,7 +349,7 @@ export default function ReportTemplate({ type, title }: ReportTemplateProps) {
                <div className="flex items-center gap-1.5 ml-2"><div className="w-3 h-3 rounded-full bg-rose-500"></div><span className="text-[10px] font-bold text-zinc-500 uppercase">Pengeluaran</span></div>
             </div>
          </div>
-
+ 
          <div className="flex-1 min-h-0 w-full relative z-10">
             <ResponsiveContainer width="100%" height="100%">
                <AreaChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
@@ -289,9 +373,11 @@ export default function ReportTemplate({ type, title }: ReportTemplateProps) {
             </ResponsiveContainer>
          </div>
       </div>
-
+ 
       {/* Rincian Data Table */}
-      <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden shadow-sm mt-2">
+      <div className={`bg-white rounded-2xl border border-zinc-100 overflow-hidden shadow-sm mt-2 transition-all duration-300 ease-in-out ${
+        isFiltering ? "opacity-40 blur-[1px] scale-[0.995]" : "opacity-100 blur-0 scale-100"
+      }`}>
          <div className="p-6 border-b border-zinc-100">
             <h3 className="text-lg font-bold text-[#030037] tracking-tight">Rincian Per Periode</h3>
          </div>

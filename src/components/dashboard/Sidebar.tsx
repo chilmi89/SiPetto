@@ -16,12 +16,22 @@ import {
   HelpCircle,
   X,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Package
 } from "lucide-react";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/backend/admin/dashboard" },
   { icon: Building2, label: "Manajemen Tenant", href: "/backend/admin/tenant" },
+  { 
+    icon: Package, 
+    label: "Manajemen Produk", 
+    href: "/backend/admin/products",
+    subItems: [
+      { label: "Monitoring Produk", href: "/backend/admin/products" },
+      { label: "Kategori Produk", href: "/backend/admin/products/kategori-produk" },
+    ]
+  },
   { icon: Users, label: "Manajemen Pengguna", href: "/backend/admin/users" },
   { 
     icon: ShieldCheck, 

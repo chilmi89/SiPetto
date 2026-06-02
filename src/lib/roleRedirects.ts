@@ -17,7 +17,8 @@ export const ROLE_REDIRECTS: Record<string, string> = {
   ADMIN:  "/backend/admin/dashboard",
   TENANT: "/backend/tenant",
   OWNER:  "/backend/tenant",  // Arahkan Owner ke folder tenant
-  STAFF:  "/backend/staff",
+  STAFF:  "/backend/tenant",  // Arahkan Staff ke folder tenant
+  UMKM:   "/backend/tenant",  // Arahkan UMKM (Pengelola Cabang) ke folder tenant
 };
 
 /**

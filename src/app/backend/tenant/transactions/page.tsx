@@ -16,7 +16,8 @@ import {
   Info,
   Banknote,
   Edit2,
-  ArrowRight
+  ArrowRight,
+  Store
 } from "lucide-react";
 import FullPageLoader from "@/components/layout/FullPageLoader";
 import SectionLoader from "@/components/layout/SectionLoader";
@@ -69,6 +70,12 @@ const RecorderContent = () => {
   const [reference, setReference] = useState("");
   const [description, setDescription] = useState("");
   
+  // Branch States
+  const [branches, setBranches] = useState<any[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>("");
+  const [userBranchId, setUserBranchId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string>("");
+  
   // Master Data
   const [categories, setCategories] = useState<{id: string, name: string, type: string}[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<{id: string, name: string}[]>([]);
@@ -82,9 +89,10 @@ const RecorderContent = () => {
     { id: Math.random().toString(), name: "", amount: 0, category_id: "", payment_method_id: "", type: "pemasukan" },
   ]);
 
-  const fetchRecent = useCallback(async (profId: string) => {
+  const fetchRecent = useCallback(async (profId: string, branchId?: string) => {
     try {
-        const res = await fetch(`/api/backend/transaction/group?profile_id=${profId}&limit=5`);
+        const url = `/api/backend/transaction/group?profile_id=${profId}&limit=5` + (branchId ? `&branch_id=${branchId}` : "");
+        const res = await fetch(url);
         if (res.ok) {
             const json = await res.json();
             setRecentTransactions(json.data);
@@ -141,21 +149,44 @@ const RecorderContent = () => {
         if (!profRes.ok) throw new Error("Gagal mengambil profil");
         const profData = await profRes.json();
         const currentProfileId = profData.profile.id;
-        setProfileId(currentProfileId);
+        const tenantOwnerId = profData.profile.tenant_owner_id || currentProfileId;
+        setProfileId(tenantOwnerId);
+        
+        const currentBranchId = profData.profile.branch_id;
+        setUserBranchId(currentBranchId);
+        setUserRole(profData.profile.roles?.name || "");
+
+        // Fetch Branches
+        const branchesRes = await fetch(`/api/backend/branches?tenant_id=${tenantOwnerId}`);
+        let branchesList = [];
+        if (branchesRes.ok) {
+            const branchesJson = await branchesRes.json();
+            branchesList = branchesJson.data || [];
+            setBranches(branchesList);
+        }
+
+        let initialBranchId = "";
+        if (currentBranchId) {
+            initialBranchId = currentBranchId;
+            setSelectedBranchId(currentBranchId);
+        } else if (branchesList.length > 0) {
+            initialBranchId = branchesList[0].id;
+            setSelectedBranchId(branchesList[0].id);
+        }
         
         // Fetch recent items (detached)
-        fetchRecent(currentProfileId);
+        fetchRecent(tenantOwnerId, initialBranchId);
 
         // 2. Load Master Data & Edit Mode in Parallel
         const [catData, payData, txData] = await Promise.all([
-            fetch(`/api/backend/kategori?profile_id=${currentProfileId}&limit=100`).then(r => r.json()),
-            fetch(`/api/backend/payment_kategori?profile_id=${currentProfileId}&limit=100`).then(r => r.json()),
+            fetch(`/api/backend/kategori?profile_id=${tenantOwnerId}&limit=100`).then(r => r.json()),
+            fetch(`/api/backend/payment_kategori?profile_id=${tenantOwnerId}&limit=100`).then(r => r.json()),
             editId ? fetch(`/api/backend/transaction/group?id=${editId}`).then(r => r.json()) : Promise.resolve(null)
         ]);
 
         if (catData.data?.length === 0 || payData.data?.length === 0) {
             // Seed if either is empty
-            initDefaults(currentProfileId);
+            initDefaults(tenantOwnerId);
         }
         
         if (catData.data?.length > 0) {
@@ -171,6 +202,9 @@ const RecorderContent = () => {
             setDate(tx.transaction_date.split("T")[0]);
             setReference(tx.reference_number || "");
             setDescription(tx.description || "");
+            if (tx.branch_id) {
+                setSelectedBranchId(tx.branch_id);
+            }
             setItems(tx.transaction_items.map((it: any) => ({
                 id: it.id,
                 name: it.name,
@@ -198,6 +232,13 @@ const RecorderContent = () => {
 
     fetchMasterAndEditData();
   }, [editId, fetchRecent, initDefaults]);
+
+  // Effect to load recent transactions when active branch changes
+  useEffect(() => {
+    if (profileId && selectedBranchId) {
+      fetchRecent(profileId, selectedBranchId);
+    }
+  }, [profileId, selectedBranchId, fetchRecent]);
 
   // Totals calculation
   const totalIncome = items.filter(i => i.type === "pemasukan").reduce((sum, i) => sum + i.amount, 0);
@@ -242,6 +283,7 @@ const RecorderContent = () => {
         body: JSON.stringify({
           ...(editId && { id: editId }),
           profile_id: profileId,
+          branch_id: selectedBranchId || null,
           reference_number: reference,
           transaction_date: date,
           description,
@@ -261,7 +303,7 @@ const RecorderContent = () => {
             router.push("/backend/tenant/transactions");
         } else {
             // Reset
-            fetchRecent(profileId);
+            fetchRecent(profileId, selectedBranchId);
             setReference(`TRX-${Date.now().toString().slice(-6)}`);
             setItems([{ id: Math.random().toString(), name: "", amount: 0, category_id: "", payment_method_id: paymentMethods[0]?.id || "", type: "pemasukan" }]);
             setDescription("");
@@ -283,7 +325,7 @@ const RecorderContent = () => {
           const res = await fetch(`/api/backend/transaction/group?id=${id}`, { method: "DELETE" });
           if (res.ok) {
               toast.success("Hapus berhasil");
-              if (profileId) fetchRecent(profileId);
+              if (profileId) fetchRecent(profileId, selectedBranchId);
               if (editId === id) router.push("/backend/tenant/transactions");
           }
       } catch (e) { toast.error("Gagal menghapus"); }
@@ -352,7 +394,7 @@ const RecorderContent = () => {
         {/* The Card Section */}
         <div className="bg-[#f8f9fa] border border-zinc-300/50 rounded-2xl p-3 lg:p-7 shadow-lg shadow-zinc-200/50 space-y-4 lg:space-y-6">
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4 border-b border-zinc-200/50 pb-4 lg:pb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 lg:gap-4 border-b border-zinc-200/50 pb-4 lg:pb-6">
              <div className="space-y-1">
                 <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-widest pl-1">Tanggal Entry</label>
                 <div className="relative group">
@@ -376,6 +418,26 @@ const RecorderContent = () => {
                     value={reference}
                     onChange={(e) => setReference(e.target.value)}
                   />
+                </div>
+             </div>
+             <div className="space-y-1">
+                <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-widest pl-1">Cabang Operasional</label>
+                <div className="relative group flex items-center">
+                   <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 group-focus-within:text-primary transition-colors shrink-0" />
+                   <select
+                     disabled={!!userBranchId}
+                     className="w-full pl-9 lg:pl-10 pr-8 py-2 lg:py-2.5 bg-white border border-zinc-200 rounded-xl text-[11px] lg:text-xs font-bold text-black focus:ring-4 focus:ring-primary/5 outline-none transition-all shadow-sm appearance-none cursor-pointer disabled:bg-zinc-100 disabled:text-zinc-500"
+                     value={selectedBranchId}
+                     onChange={(e) => setSelectedBranchId(e.target.value)}
+                   >
+                     {branches.length === 0 && <option value="">Tidak ada cabang</option>}
+                     {branches.map((b) => (
+                       <option key={b.id} value={b.id}>
+                         {b.name} {userBranchId === b.id ? "(Cabang Anda)" : ""}
+                       </option>
+                     ))}
+                   </select>
+                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-400 pointer-events-none" />
                 </div>
              </div>
           </div>

@@ -58,10 +58,33 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
     try {
         const body = await req.json();
-        const { id, business_name, phone_number, address, full_name, bio, avatar_url, banner_url } = body;
+        const { id, business_name, phone_number, address, full_name, bio, avatar_url, banner_url, username } = body;
 
         if (!id) {
             return NextResponse.json({ error: "ID Profile tidak ditemukan" }, { status: 400 });
+        }
+
+        // Validasi keunikan dan format username
+        let cleanUsername = undefined;
+        if (username !== undefined) {
+            if (username === null || username.trim() === "") {
+                cleanUsername = null;
+            } else {
+                const trimmed = username.trim().toLowerCase();
+                if (!/^[a-z0-9-]+$/.test(trimmed)) {
+                    return NextResponse.json({ error: "Username hanya boleh berisi huruf kecil, angka, dan tanda hubung (-)." }, { status: 400 });
+                }
+                const existing = await prisma.profiles.findFirst({
+                    where: {
+                        username: trimmed,
+                        id: { not: id }
+                    }
+                });
+                if (existing) {
+                    return NextResponse.json({ error: "Username toko ini sudah digunakan oleh UMKM lain. Silakan pilih username lain." }, { status: 400 });
+                }
+                cleanUsername = trimmed;
+            }
         }
 
         // Cari role Owner untuk memastikan role di-upgrade jika belum
@@ -79,6 +102,7 @@ export async function PATCH(req: Request) {
                 bio: bio ?? null,
                 avatar_url: avatar_url ?? undefined, // Bisa memperbarui avatar
                 banner_url: banner_url ?? undefined, // Memperbarui banner
+                username: cleanUsername, // Memperbarui username/slug toko
                 role_id: ownerRole?.id, // Pastikan role jadi OWNER saat data lengkap
             },
             select: {
@@ -93,6 +117,7 @@ export async function PATCH(req: Request) {
                 banner_url: true,
                 is_active: true,
                 role_id: true,
+                username: true,
                 created_at: true,
             },
         });

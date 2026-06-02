@@ -23,6 +23,7 @@ interface Profile {
   created_at: string;
   avatar_url?: string;
   banner_url?: string;
+  username?: string | null;
 }
 
 const ProfileTenantPage = () => {
@@ -38,7 +39,7 @@ const ProfileTenantPage = () => {
     const [uploadingFiles, setUploadingFiles] = useState(false);
 
     const [editData, setEditData] = useState({
-        full_name: "", business_name: "", phone_number: "", address: "", bio: ""
+        full_name: "", business_name: "", phone_number: "", address: "", bio: "", username: ""
     });
 
     const fetchProfile = async () => {
@@ -50,7 +51,8 @@ const ProfileTenantPage = () => {
                 setProfile(data);
                 setEditData({
                     full_name: data.full_name || "", business_name: data.business_name || "",
-                    phone_number: data.phone_number || "", address: data.address || "", bio: data.bio || ""
+                    phone_number: data.phone_number || "", address: data.address || "", bio: data.bio || "",
+                    username: data.username || ""
                 });
                 setAvatarPreview(data.avatar_url || null);
                 setBannerPreview(data.banner_url || null);
@@ -217,11 +219,35 @@ const ProfileTenantPage = () => {
                             </div>
                         </div>
 
-                        {/* Tile: Email (wider) */}
-                        <BentoTile span={6} icon={<Mail className="w-4 h-4" />} label="Email" value={profile?.email} />
+                        {/* Tile: Email */}
+                        <BentoTile span={4} icon={<Mail className="w-4 h-4" />} label="Email" value={profile?.email} />
                         
-                        {/* Tile: Phone (wider) */}
-                        <BentoTile span={6} icon={<Phone className="w-4 h-4" />} label="Telepon / WA" value={profile?.phone_number} />
+                        {/* Tile: Phone */}
+                        <BentoTile span={4} icon={<Phone className="w-4 h-4" />} label="Telepon / WA" value={profile?.phone_number} />
+
+                        {/* Tile: Username Toko */}
+                        <div className="col-span-12 sm:col-span-6 lg:col-span-4 bg-white border border-zinc-100 rounded-2xl p-5 flex flex-col gap-2 hover:shadow-md hover:border-emerald-500/20 transition-all group">
+                            <div className="flex items-center gap-2.5 pt-2">
+                                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-colors shrink-0">
+                                    <Store className="w-4 h-4" />
+                                </div>
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Link E-Catalog Toko</span>
+                            </div>
+                            <p className="text-[#030037] font-bold text-sm tracking-tight leading-relaxed break-words">
+                                {profile?.username ? (
+                                    <a 
+                                        href={`${typeof window !== 'undefined' ? window.location.origin : ''}/store/${profile.username}`} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className="text-emerald-600 hover:text-emerald-800 underline transition-colors"
+                                    >
+                                        @{profile.username}
+                                    </a>
+                                ) : (
+                                    <span className="text-zinc-300 italic font-medium text-xs">Belum diatur</span>
+                                )}
+                            </p>
+                        </div>
 
                         {/* Tile: Bio (full) */}
                         {profile?.bio && (
@@ -246,10 +272,30 @@ const ProfileTenantPage = () => {
                         </div>
 
                         <form onSubmit={handleUpdate} className="space-y-5">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormField label="Nama Lengkap" value={editData.full_name} onChange={(v) => setEditData({...editData, full_name: v})} icon={<User className="w-3.5 h-3.5 text-zinc-400" />} />
                                 <FormField label="Nama Bisnis" value={editData.business_name} onChange={(v) => setEditData({...editData, business_name: v})} icon={<Store className="w-3.5 h-3.5 text-zinc-400" />} />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormField label="No. Telepon / WA" value={editData.phone_number} onChange={(v) => setEditData({...editData, phone_number: v})} icon={<Phone className="w-3.5 h-3.5 text-zinc-400" />} />
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 ml-1">Username / Slug Toko</label>
+                                    <div className="relative">
+                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold text-xs">@</div>
+                                        <input 
+                                            value={editData.username} 
+                                            onChange={(e) => {
+                                                const val = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                                                setEditData({...editData, username: val});
+                                            }}
+                                            placeholder="username-toko-anda"
+                                            className="w-full bg-zinc-50 border border-zinc-200 text-[#030037] p-3 pl-8 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium text-sm" 
+                                        />
+                                    </div>
+                                    <p className="text-[10px] text-zinc-400 font-medium ml-1">
+                                        Preview Link: <span className="text-emerald-500 font-semibold">{typeof window !== 'undefined' ? `${window.location.origin}/store/${editData.username || 'username-anda'}` : `/store/${editData.username || 'username-anda'}`}</span>
+                                    </p>
+                                </div>
                             </div>
                             
                             <div className="space-y-2">

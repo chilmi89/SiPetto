@@ -40,6 +40,7 @@ export async function POST(req: Request) {
       business_name,
       phone_number,
       is_active,
+      branch_id,
     } = body;
 
     if (!email || !password || !full_name) {
@@ -68,6 +69,7 @@ export async function POST(req: Request) {
         business_name,
         phone_number,
         is_active: is_active ?? true,
+        branch_id: branch_id ?? null,
       },
     });
 

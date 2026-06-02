@@ -18,7 +18,7 @@ const RegisterPage = () => {
   }
 
   return (
-    <div className="h-screen w-full bg-gradient-animate flex flex-col font-sans selection:bg-white/20 selection:text-white relative overflow-hidden" suppressHydrationWarning>
+    <div className="min-h-screen w-full bg-gradient-animate flex flex-col font-sans selection:bg-white/20 selection:text-white relative overflow-hidden" suppressHydrationWarning>
       {/* Background Decorative Elements */}
       <div className="absolute top-[15%] left-[-10%] w-[50%] h-[50%] bg-white/5 blur-[120px] rounded-full animate-pulse z-0" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-brand-accent/10 blur-[120px] rounded-full animate-pulse delay-700 z-0" />
@@ -29,7 +29,7 @@ const RegisterPage = () => {
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 min-h-0 w-full flex items-center justify-center relative z-10 p-2 lg:p-4">
+      <main className="flex-1 min-h-0 w-full flex items-center justify-center relative z-10 py-8 lg:py-12">
         <div className="container max-w-6xl mx-auto flex items-center justify-center">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-6 items-center w-full">
             {/* Illustration Section - Hidden on smaller heights/mobile if necessary but kept for now with smaller scale */}

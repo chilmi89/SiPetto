@@ -33,6 +33,17 @@
 }
 
 @layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+
   :root {
     --font-sans: var(--font-jakarta), var(--font-inter);
     --font-heading: var(--font-outfit);
@@ -65,5 +76,7 @@
 body {
   background: var(--brand-secondary);
   color: #ffffff;
-  overflow: hidden; /* Prevent body-level scroll */
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
 }

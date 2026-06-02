@@ -16,18 +16,23 @@ import {
   X,
   History,
   Receipt,
-  ChevronDown
+  ChevronDown,
+  Sliders
 } from "lucide-react";
 
 type NavItem = {
   icon: any;
   label: string;
   href: string;
+  permission?: string;
   subItems?: { label: string; href: string }[];
 };
 
 const tenantNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/backend/tenant" },
+  { icon: Package, label: "Kelola Produk", href: "/backend/tenant/products", permission: "kelola_produk" },
+  { icon: Sliders, label: "Kelola Stok", href: "/backend/tenant/stocks", permission: "kelola_stok" },
+  { icon: Store, label: "Kelola Cabang", href: "/backend/tenant/branches" },
   { icon: Receipt, label: "Catatan Transaksi", href: "/backend/tenant/transactions" },
   { icon: History, label: "Riwayat & Kelola", href: "/backend/tenant/transactions/history" },
   { 
@@ -49,9 +54,30 @@ export const TenantSidebar = () => {
   const { isOpen, closeSidebar } = useSidebar();
   const [mounted, setMounted] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+  const [userBranchId, setUserBranchId] = useState<string | null>(null);
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
+  const [loadingPermissions, setLoadingPermissions] = useState(true);
 
   useEffect(() => {
     setMounted(true);
+    // Fetch user profile to check branch_id and permissions
+    fetch("/api/auth/me")
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data) {
+          if (data.branch_id) {
+            setUserBranchId(data.branch_id);
+          }
+          if (data.permissions) {
+            setUserPermissions(data.permissions);
+          }
+        }
+        setLoadingPermissions(false);
+      })
+      .catch(() => {
+        setLoadingPermissions(false);
+      });
+
     // Auto-tutup sub-menu jika berpindah ke halaman menu utama (tidak terkait)
     const activeItem = tenantNavItems.find(item => item.subItems && pathname.startsWith(item.href));
     if (activeItem) {
@@ -104,7 +130,17 @@ export const TenantSidebar = () => {
         </div>
 
         <nav className="flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {tenantNavItems.map((item) => {
+          {tenantNavItems
+            .filter((item) => {
+              if (userBranchId && item.href === "/backend/tenant/branches") {
+                return false;
+              }
+              if (item.permission && !loadingPermissions) {
+                return userPermissions.includes(item.permission);
+              }
+              return true;
+            })
+            .map((item) => {
             const isActive = pathname === item.href || (!!item.subItems && pathname.startsWith(item.href) && pathname !== item.href);
             const hasSubItems = !!item.subItems;
             const isExpanded = expandedMenus.includes(item.label);

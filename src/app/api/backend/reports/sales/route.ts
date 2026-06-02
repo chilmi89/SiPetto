@@ -6,6 +6,7 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         
         const profile_id = searchParams.get("profile_id");
+        const branch_id = searchParams.get("branch_id") || undefined;
         // type: 'daily' | 'weekly' | 'monthly' | 'yearly'
         const type = searchParams.get("type") || "daily"; 
         const date_start = searchParams.get("date_start");
@@ -16,6 +17,9 @@ export async function GET(req: Request) {
         }
 
         const where: any = { profile_id };
+        if (branch_id && branch_id !== "all") {
+            where.branch_id = branch_id;
+        }
         
         if (date_start || date_end) {
             where.transaction_date = {};

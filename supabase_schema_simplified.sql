@@ -186,6 +186,48 @@ CREATE POLICY "Manage Groups" ON public.transaction_groups FOR ALL USING (auth.u
 CREATE POLICY "Manage Items via Group" ON public.transaction_items 
 FOR ALL USING (EXISTS (SELECT 1 FROM public.transaction_groups g WHERE g.id = group_id AND g.profile_id = auth.uid()));
 
+-- 6b. Product Categories Table
+CREATE TABLE IF NOT EXISTS public.product_categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(profile_id, name)
+);
+
+-- RLS untuk Product Categories
+ALTER TABLE public.product_categories ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Product categories are viewable by everyone" ON public.product_categories FOR SELECT USING (true);
+CREATE POLICY "Manage own product categories" ON public.product_categories FOR ALL USING (auth.uid() = profile_id);
+
+-- 12. Products Table
+CREATE TABLE IF NOT EXISTS public.products (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    category_id UUID REFERENCES public.product_categories(id) ON DELETE SET NULL,
+    name VARCHAR(255) NOT NULL,
+    sku VARCHAR(100),
+    description TEXT,
+    price_selling NUMERIC(15, 2) NOT NULL DEFAULT 0,
+    price_cost NUMERIC(15, 2) NOT NULL DEFAULT 0,
+    stock INT NOT NULL DEFAULT 0,
+    image_url TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Trigger updated_at
+DROP TRIGGER IF EXISTS update_products_modtime ON public.products;
+CREATE TRIGGER update_products_modtime 
+    BEFORE UPDATE ON public.products 
+    FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+-- RLS untuk Products
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Products are viewable by everyone" ON public.products FOR SELECT USING (is_active = true);
+CREATE POLICY "Manage own products" ON public.products FOR ALL USING (auth.uid() = profile_id);
+
 -- 📊 LANGKAH INTEGRASI FINAL (PENTING):
 /*
 1. Jalankan SQL ini di Supabase SQL Editor.

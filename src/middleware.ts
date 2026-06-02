@@ -13,7 +13,7 @@ const PROTECTED_ROUTES = ["/backend"];
 // key: prefix path, value: array role yang diizinkan (UPPERCASE)
 const ROLE_PROTECTED_ROUTES: Record<string, string[]> = {
   "/backend/admin": ["ADMIN"],
-  "/backend/tenant": ["TENANT", "OWNER", "ADMIN"],
+  "/backend/tenant": ["TENANT", "OWNER", "ADMIN", "UMKM", "STAFF"],
   // Tambahkan mapping baru di sini jika ada role/path baru
   // "/backend/staff": ["STAFF", "ADMIN"],
 };

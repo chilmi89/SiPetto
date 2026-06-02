@@ -25,8 +25,11 @@ const MONTH_LABELS = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Ags","Sep","Okt
 // ─── 1. GET — Profile UMKM + Ringkasan Keuangan Tahunan ──────────────────────
 // Returns: { profile, financials: { saldo, pendapatan, pengeluaran, labaRugi } }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const branch_id = searchParams.get("branch_id") || undefined;
+
     const profile_id = await getProfileId();
     if (!profile_id) {
       return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
@@ -34,46 +37,71 @@ export async function GET() {
 
     const currentYear = new Date().getFullYear();
 
-    // Ambil profile + transaction_groups secara paralel
-    const [profile, txGroups] = await Promise.all([
-      prisma.profiles.findUnique({
-        where: { id: profile_id },
-        select: {
-          id: true,
-          full_name: true,
-          business_name: true,
-          email: true,
-          phone_number: true,
-          address: true,
-          avatar_url: true,
-          bio: true,
-          is_active: true,
-          created_at: true,
-          updated_at: true,
-        },
-      }),
-
-      prisma.transaction_groups.findMany({
-        where: {
-          profile_id,
-          transaction_date: {
-            gte: new Date(`${currentYear}-01-01`),
-            lte: new Date(`${currentYear}-12-31`),
-          },
-        },
-        select: {
-          transaction_date: true,
-          total_income: true,
-          total_expense: true,
-          net_balance: true,
-        },
-        orderBy: { transaction_date: "asc" },
-      }),
-    ]);
+    // 1. Ambil profile terlebih dahulu
+    const profile = await prisma.profiles.findUnique({
+      where: { id: profile_id },
+      select: {
+        id: true,
+        full_name: true,
+        business_name: true,
+        email: true,
+        phone_number: true,
+        address: true,
+        avatar_url: true,
+        bio: true,
+        is_active: true,
+        created_at: true,
+        updated_at: true,
+        branch_id: true,
+        username: true,
+        roles: {
+          select: { name: true }
+        }
+      },
+    });
 
     if (!profile) {
       return NextResponse.json({ error: "Profil tidak ditemukan" }, { status: 404 });
     }
+
+    // Tentukan tenantOwnerId (ID Owner Utama) dan paksa filter branch jika user adalah staf cabang
+    let tenantOwnerId = profile.id;
+    let forcedBranchId = branch_id;
+
+    if (profile.branch_id) {
+      const branch = await prisma.branches.findUnique({
+        where: { id: profile.branch_id },
+        select: { tenant_id: true }
+      });
+      if (branch) {
+        tenantOwnerId = branch.tenant_id;
+      }
+      forcedBranchId = profile.branch_id;
+    }
+
+    const txWhere: any = {
+      profile_id: tenantOwnerId,
+      transaction_date: {
+        gte: new Date(`${currentYear}-01-01`),
+        lte: new Date(`${currentYear}-12-31`),
+      },
+    };
+
+    if (forcedBranchId && forcedBranchId !== "all") {
+      txWhere.branch_id = forcedBranchId;
+    }
+
+    // Ambil transaction_groups secara paralel
+    const txGroups = await prisma.transaction_groups.findMany({
+      where: txWhere,
+      select: {
+        transaction_date: true,
+        total_income: true,
+        total_expense: true,
+        net_balance: true,
+      },
+      orderBy: { transaction_date: "asc" },
+    });
 
     // ── Agregasi per bulan ───────────────────────────────────────────────────
     const monthly = Array.from({ length: 12 }, (_, i) => ({
@@ -110,7 +138,10 @@ export async function GET() {
     const totalSaldo       = runningBalance;
 
     return NextResponse.json({
-      profile,
+      profile: {
+        ...profile,
+        tenant_owner_id: tenantOwnerId
+      },
       financials: {
         summary: {
           totalPendapatan,

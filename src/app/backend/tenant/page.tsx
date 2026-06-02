@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import {
-  TrendingUp, TrendingDown, Wallet, DollarSign, ArrowRight, Receipt, Calendar, Info
+  TrendingUp, TrendingDown, Wallet, DollarSign, ArrowRight, Receipt, Calendar, Info, ChevronDown, Copy, Check, ExternalLink, Store
 } from "lucide-react";
 import FullPageLoader from "@/components/layout/FullPageLoader";
 import SectionLoader from "@/components/layout/SectionLoader";
@@ -19,6 +19,7 @@ interface Profile {
   business_name: string | null;
   email: string;
   is_active: boolean | null;
+  username: string | null;
 }
 
 interface FinancialSummary {
@@ -165,23 +166,46 @@ export default function TenantDashboard() {
   const [charts,   setCharts]   = useState<ChartData>(emptyCharts);
   const [recentTx, setRecentTx] = useState<RecentTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFiltering, setIsFiltering] = useState(false);
+  const [copied, setCopied] = useState(false);
+  
+  // Branch Filter States
+  const [branches, setBranches] = useState<any[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>("all");
+  const [userBranchId, setUserBranchId] = useState<string | null>(null);
+
+  const handleCopyLink = () => {
+    if (!profile?.username) return;
+    const storeLink = `${window.location.origin}/store/${profile.username}`;
+    navigator.clipboard.writeText(storeLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchInitialData = async () => {
       try {
-        // Fetch Profile & Financials
+        setIsLoading(true);
+        // Fetch Profile
         const res = await fetch("/api/backend/tenant-umkm");
         if (res.ok) {
           const json = await res.json();
           setProfile(json.profile);
-          setSummary(json.financials.summary);
-          setCharts(json.financials.charts);
+          const currentProfileId = json.profile.id;
+          const currentBranchId = json.profile.branch_id;
+          setUserBranchId(currentBranchId);
+          
+          // Fetch Branches
+          const branchesRes = await fetch(`/api/backend/branches?tenant_id=${currentProfileId}`);
+          if (branchesRes.ok) {
+              const branchesJson = await branchesRes.json();
+              setBranches(branchesJson.data || []);
+          }
 
-          // Fetch Recent Transactions
-          const txRes = await fetch(`/api/backend/transaction/group?profile_id=${json.profile.id}&limit=5`);
-          if (txRes.ok) {
-            const txJson = await txRes.json();
-            setRecentTx(txJson.data);
+          if (currentBranchId) {
+              setSelectedBranchId(currentBranchId);
+          } else {
+              setSelectedBranchId("all");
           }
         }
       } catch (err) {
@@ -190,8 +214,42 @@ export default function TenantDashboard() {
         setIsLoading(false);
       }
     };
-    fetchData();
+    fetchInitialData();
   }, []);
+
+  // Fetch financials and transactions when selected branch changes
+  useEffect(() => {
+    const fetchFilteredData = async () => {
+      if (!profile) return;
+      setIsFiltering(true);
+      try {
+        // Fetch Financials
+        const res = await fetch(`/api/backend/tenant-umkm?branch_id=${selectedBranchId}`);
+        if (res.ok) {
+          const json = await res.json();
+          setSummary(json.financials.summary);
+          setCharts(json.financials.charts);
+        }
+
+        // Fetch Recent Transactions
+        const txUrl = `/api/backend/transaction/group?profile_id=${profile.id}&limit=5` + 
+                      (selectedBranchId !== "all" ? `&branch_id=${selectedBranchId}` : "");
+        const txRes = await fetch(txUrl);
+        if (txRes.ok) {
+          const txJson = await txRes.json();
+          setRecentTx(txJson.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch filtered data:", err);
+      } finally {
+        setTimeout(() => {
+          setIsFiltering(false);
+        }, 200);
+      }
+    };
+
+    fetchFilteredData();
+  }, [profile, selectedBranchId]);
 
   const displayName = profile?.business_name ?? profile?.full_name ?? "UMKM Anda";
 
@@ -214,21 +272,122 @@ export default function TenantDashboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-4 bg-white/80 backdrop-blur-md px-6 py-4 rounded-xl border border-zinc-100 shadow-sm self-start sm:self-center">
-          <div className="flex flex-col items-start sm:items-end gap-1">
-            <span className="text-[10px] font-bold uppercase text-zinc-400 tracking-widest leading-none">Saldo Bersih</span>
-            <span className={`font-bold text-sm ${(summary?.totalSaldo ?? 0) >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-              {formatShort(summary?.totalSaldo ?? 0)}
-            </span>
+        <div className="flex flex-wrap items-center gap-3 self-start sm:self-center">
+          {/* Dropdown Filter Cabang */}
+          <div className="relative group">
+            <select
+              disabled={!!userBranchId}
+              className="px-4 py-3.5 bg-white/80 border border-zinc-150 rounded-xl text-xs font-bold text-zinc-950 shadow-sm appearance-none cursor-pointer focus:outline-none focus:ring-4 focus:ring-primary/5 pr-8 disabled:bg-zinc-100 disabled:text-zinc-500"
+              value={selectedBranchId}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
+            >
+              <option value="all">Semua Cabang</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
           </div>
-          <button onClick={() => router.push("/backend/tenant/transactions")} className="ml-2 p-3 bg-primary text-white rounded-xl shadow-lg shadow-primary/30 hover:scale-105 active:scale-95 transition-all group">
-             <Receipt className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-          </button>
+
+          <div className="flex items-center gap-4 bg-white/80 backdrop-blur-md px-6 py-4 rounded-xl border border-zinc-100 shadow-sm">
+            <div className="flex flex-col items-start sm:items-end gap-1">
+              <span className="text-[10px] font-bold uppercase text-zinc-400 tracking-widest leading-none">Saldo Bersih</span>
+              <span className={`font-bold text-sm ${(summary?.totalSaldo ?? 0) >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                {formatShort(summary?.totalSaldo ?? 0)}
+              </span>
+            </div>
+            <button onClick={() => router.push("/backend/tenant/transactions")} className="ml-2 p-3 bg-primary text-white rounded-xl shadow-lg shadow-primary/30 hover:scale-105 active:scale-95 transition-all group">
+               <Receipt className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+            </button>
+          </div>
         </div>
       </div>
 
+      {/* Marketplace Link Banner */}
+      {!isLoading && (
+        <div className="w-full">
+          {profile?.username ? (
+            <div className="bg-gradient-to-r from-emerald-500/[0.04] to-teal-500/[0.02] border border-emerald-500/20 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
+              <div className="flex items-start gap-4">
+                <div className="p-3.5 bg-emerald-500/10 text-emerald-600 rounded-xl mt-1 md:mt-0 shrink-0">
+                  <Store className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-zinc-950 flex items-center gap-1.5 leading-none">
+                    🌟 Toko E-Catalog WhatsApp Anda Aktif!
+                  </h3>
+                  <p className="text-xs text-zinc-500 font-medium">
+                    Pelanggan sekarang dapat melihat katalog produk dan melakukan pemesanan langsung ke nomor WhatsApp Anda.
+                  </p>
+                  <div className="pt-2 flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Link Toko Anda:</span>
+                    <span className="inline-flex items-center px-3 py-1 bg-emerald-500/5 border border-emerald-500/15 rounded-lg text-xs font-bold text-emerald-600 font-mono tracking-tight select-all">
+                      {typeof window !== 'undefined' ? `${window.location.origin}/store/${profile.username}` : `/store/${profile.username}`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 w-full md:w-auto shrink-0 self-stretch md:self-center">
+                <button
+                  onClick={handleCopyLink}
+                  className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-3 bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-700 text-xs font-bold rounded-xl shadow-sm transition-all duration-200"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-500" />
+                      <span className="text-emerald-600 font-bold">Tersalin!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 text-zinc-400" />
+                      <span>Salin Link</span>
+                    </>
+                  )}
+                </button>
+                <a
+                  href={`/store/${profile.username}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white hover:bg-emerald-600 text-xs font-bold rounded-xl shadow-md shadow-primary/10 transition-all duration-200"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Kunjungi Toko</span>
+                </a>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-gradient-to-r from-amber-500/[0.04] to-orange-500/[0.02] border border-amber-500/20 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
+              <div className="flex items-start gap-4">
+                <div className="p-3.5 bg-amber-500/10 text-amber-600 rounded-xl mt-1 md:mt-0 shrink-0">
+                  <Info className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-zinc-950 flex items-center gap-1.5 leading-none">
+                    ⚠️ Toko E-Catalog WhatsApp Belum Aktif!
+                  </h3>
+                  <p className="text-xs text-zinc-500 font-medium">
+                    Anda belum menentukan username/slug unik untuk E-Catalog toko Anda. Pelanggan belum bisa mengakses etalase produk online Anda.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push("/backend/tenant/profile")}
+                className="w-full md:w-auto shrink-0 flex items-center justify-center gap-2 px-4 py-3 bg-amber-600 text-white hover:bg-amber-700 text-xs font-bold rounded-xl shadow-md shadow-amber-600/10 transition-all duration-200"
+              >
+                <span>Atur Username Toko</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Charts 2x2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={`grid grid-cols-1 lg:grid-cols-2 gap-6 transition-all duration-300 ease-in-out ${
+        isFiltering ? "opacity-40 blur-[1px] scale-[0.995]" : "opacity-100 blur-0 scale-100"
+      }`}>
         <ChartCard title="Saldo Akumulatif" value={formatShort(summary?.totalSaldo ?? 0)} color="#3c39d6" data={charts.saldo} dataKey="saldo" icon={<Wallet className="w-6 h-6" />} />
         <ChartCard title="Pendapatan Bersih" value={formatShort(summary?.totalPendapatan ?? 0)} color="#10b981" data={charts.pendapatan} dataKey="pendapatan" icon={<TrendingUp className="w-6 h-6" />} />
         <ChartCard title="Pengeluaran Bersih" value={formatShort(summary?.totalPengeluaran ?? 0)} color="#f43f5e" data={charts.pengeluaran} dataKey="pengeluaran" icon={<TrendingDown className="w-6 h-6" />} negative />
@@ -236,7 +395,9 @@ export default function TenantDashboard() {
       </div>
 
       {/* Recent Transactions Section */}
-      <div className="mt-4 space-y-4">
+      <div className={`mt-4 space-y-4 transition-all duration-300 ease-in-out ${
+        isFiltering ? "opacity-40 blur-[1px] scale-[0.995]" : "opacity-100 blur-0 scale-100"
+      }`}>
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
             <h3 className="text-xl font-bold text-[#030037] tracking-tight">Transaksi Terakhir</h3>

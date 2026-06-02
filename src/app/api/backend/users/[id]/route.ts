@@ -46,6 +46,7 @@ export async function PUT(
       business_name,
       phone_number,
       is_active,
+      branch_id,
     } = body;
 
     const existing = await prisma.profiles.findUnique({ where: { id } });
@@ -62,6 +63,7 @@ export async function PUT(
       business_name,
       phone_number,
       is_active,
+      branch_id: branch_id ?? null,
     };
 
     if (email && email !== existing.email) {
